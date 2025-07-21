@@ -1,324 +1,365 @@
+// routes/game.js
 const express = require('express');
 const router = express.Router();
-const readline = require('readline');
-const fs = require('fs');
+const mapsConfig      = require('../cfg/maps.json');
+const rcon             = require('../modules/rcon');
+const is_authenticated = require('../modules/middleware');
+const { better_sqlite_client } = require('../db');
 
-const rcon = require("../modules/rcon");
-const is_authenticated = require("../modules/middleware");
+/**
+ * Führt einen beliebigen RCON‐Befehl aus und loggt ihn mit dem Tag [setup-game].
+ * @param {string} server_id
+ * @param {string} cmd — der komplette Befehl, z.B. 'changelevel de_dust2'
+ */
+async function runGameCmd(server_id, cmd) {
+  console.log(`[setup-game] ${cmd}`);
+  await rcon.execute_command(server_id, cmd);
+}
 
-const ALLOWED_STEAM_IDS = ['76561198154367261']
+/**
+ * Liest den aktuellen Wert eines ConVars und toggled ihn zwischen 0 und 1.
+ * @param {string} server_id
+ * @param {string} convar — z.B. 'mp_limitteams'
+ */
+async function toggleConvar(server_id, convar) {
+  // Erst Konsole ohne Argument ausführen, um den aktuellen Wert zu bekommen
+  const resp = await rcon.execute_command(server_id, convar);
+  const current = parseInt(resp.toString().trim(), 10) || 0;
+  const next = current === 0 ? 1 : 0;
+  console.log(`[setup-game] ${convar} ${next}`);
+  await rcon.execute_command(server_id, `${convar} ${next}`);
+  return next;
+}
 
+/**
+ * Führt per RCON einen "exec <cfgName>"-Befehl auf dem CS2-Server aus.
+ * @param {string} server_id
+ * @param {string} cfgName — z.B. "prefire.cfg"
+ */
+async function execCfg(server_id, cfgName) {
+  await runGameCmd(server_id, `exec ${cfgName}`);
+}
+
+//
+// === SETUP / CREATE MATCH ===
+//
 router.post('/api/setup-game', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        const team1 = req.body.team1;
-        const team2 = req.body.team2;
-        const selected_map = req.body.selectedMap;
-        const game_mode = req.body.game_mode.toString();
-        // rcon.rcons[server_id].execute(`mp_teamname_1 "${team1}"`);
-        // rcon.rcons[server_id].execute(`mp_teamname_2 "${team2}"`);
-        // rcon.rcons[server_id].execute(`game_mode ${game_mode}`);
-        if (team1.trim() != "") {
-            await rcon.execute_command(server_id, `mp_teamname_1 "${team1}"`);
-        }
-        if (team2.trim() != "") {
-            await rcon.execute_command(server_id, `mp_teamname_2 "${team2}"`);
-        }
-        await rcon.execute_command(server_id, `game_mode ${game_mode}`);
-        if (game_mode == "1") {
-            execute_cfg_on_server(server_id, './cfg/live.cfg');
-        } else if (game_mode == "2") {
-            execute_cfg_on_server(server_id, './cfg/live_wingman.cfg');
-        }
-        // rcon.rcons[server_id].execute(`mp_warmup_pausetimer 1`);
-        // rcon.rcons[server_id].execute(`changelevel ${selected_map}`);
-        await rcon.execute_command(server_id, `mp_warmup_pausetimer 1`);
-        await rcon.execute_command(server_id, `changelevel ${selected_map}`);
+  try {
+    const {
+      server_id,
+      team1 = '',
+      team2 = '',
+      game_type,
+      game_mode,
+      selectedMap
+    } = req.body;
 
-        // Adding 1 second delay in executing warmup.cfg to make it effective after map has been changed.
-        setTimeout(() => {
-            execute_cfg_on_server(server_id, './cfg/warmup.cfg');
-        }, 1000)
-
-        return res.status(200).json({ message: 'Game Created!' });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Internal server error' });
+    // 1) Team‐Namen setzen (falls angegeben)
+    if (team1.trim()) {
+      await runGameCmd(server_id, `mp_teamname_1 "${team1.trim()}"`);
     }
+    if (team2.trim()) {
+      await runGameCmd(server_id, `mp_teamname_2 "${team2.trim()}"`);
+    }
+
+    // 2) Map wechseln
+    await runGameCmd(server_id, `changelevel ${selectedMap}`);
+
+    // 3) aus maps.json das passende Exec‐File ermitteln
+    const gt = mapsConfig.gameTypes?.[game_type];
+    if (!gt) {
+      return res.status(400).json({ error: `Unbekannter game_type: ${game_type}` });
+    }
+    const gm = gt.gameModes?.[game_mode];
+    if (!gm) {
+      return res.status(400).json({ error: `Unbekannter game_mode: ${game_mode}` });
+    }
+    const execFile = gm.exec;
+
+    // 4) CFG ausführen
+    await execCfg(server_id, execFile);
+
+    // 5) Panel‐State in der DB aktualisieren
+    const stmt = better_sqlite_client.prepare(`
+      UPDATE servers
+         SET last_map        = ?,
+             last_game_type  = ?,
+             last_game_mode  = ?
+       WHERE id = ?
+    `);
+    stmt.run(selectedMap, game_type, game_mode, parseInt(server_id, 10));
+
+    return res.status(200).json({ message: 'Game Created!' });
+  } catch (err) {
+    console.error('[setup-game] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
+//
+// === QUICK COMMANDS ===
+//
+router.post('/api/scramble-teams', is_authenticated, async (req, res) => {
+  try {
+    await runGameCmd(req.body.server_id, 'mp_shuffleteams');
+    return res.status(200).json({ message: 'Teams scrambled!' });
+  } catch (err) {
+    console.error('[/api/scramble-teams] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/api/kick-all-bots', is_authenticated, async (req, res) => {
+  try {
+    await runGameCmd(req.body.server_id, 'bot_kick all');
+    return res.status(200).json({ message: 'All bots kicked!' });
+  } catch (err) {
+    console.error('[/api/kick-all-bots] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/api/add-bot', is_authenticated, async (req, res) => {
+  try {
+    await runGameCmd(req.body.server_id, 'bot_add');
+    return res.status(200).json({ message: 'Bot added!' });
+  } catch (err) {
+    console.error('[/api/add-bot] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/api/kill-bots', is_authenticated, async (req, res) => {
+  try {
+    await runGameCmd(req.body.server_id, 'bot_kill');
+    return res.status(200).json({ message: 'Bots killed!' });
+  } catch (err) {
+    console.error('[/api/kill-bots] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Toggle-Endpoints für ConVars
+// mp_limitteams an/aus
+router.post('/api/limitteams-toggle', is_authenticated, async (req, res) => {
+  try {
+    const { server_id, value } = req.body;
+    // value muss 0 oder 1 sein
+    await runGameCmd(server_id, `mp_limitteams ${value}`);
+    return res
+      .status(200)
+      .json({ message: `mp_limitteams set to ${value}` });
+  } catch (err) {
+    console.error('[/api/limitteams-toggle] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// mp_autoteambalance an/aus
+router.post('/api/autoteam-toggle', is_authenticated, async (req, res) => {
+  try {
+    const { server_id, value } = req.body;
+    await runGameCmd(server_id, `mp_autoteambalance ${value}`);
+    return res
+      .status(200)
+      .json({ message: `mp_autoteambalance set to ${value}` });
+  } catch (err) {
+    console.error('[/api/autoteam-toggle] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// mp_friendlyfire an/aus
+router.post('/api/friendlyfire-toggle', is_authenticated, async (req, res) => {
+  try {
+    const { server_id, value } = req.body;
+    await runGameCmd(server_id, `mp_friendlyfire ${value}`);
+    return res
+      .status(200)
+      .json({ message: `mp_friendlyfire set to ${value}` });
+  } catch (err) {
+    console.error('[/api/friendlyfire-toggle] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// mp_autokick an/aus
+router.post('/api/autokick-toggle', is_authenticated, async (req, res) => {
+  try {
+    const { server_id, value } = req.body;
+    await runGameCmd(server_id, `mp_autokick ${value}`);
+    return res
+      .status(200)
+      .json({ message: `mp_autokick set to ${value}` });
+  } catch (err) {
+    console.error('[/api/autokick-toggle] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//
+// === EXISTING COMMANDS & BACKUPS & RCON ===
+//
 router.post('/api/restart', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_restartgame 1');
-        await rcon.execute_command(server_id, `mp_restartgame 1`);
-        return res.status(200).json({ message: 'Game restarted' });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    await runGameCmd(req.body.server_id, 'mp_restartgame 1');
+    return res.status(200).json({ message: 'Game restarted' });
+  } catch (err) {
+    console.error('[/api/restart] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+//
+// === SIMPLE COMMANDS ===
+//
+router.post('/api/restart', is_authenticated, async (req, res) => {
+  try {
+    await runGameCmd(req.body.server_id, 'mp_restartgame 1');
+    return res.status(200).json({ message: 'Game restarted' });
+  } catch (err) {
+    console.error('[/api/restart] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/start-warmup', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_restartgame 1');
-        await rcon.execute_command(server_id, `mp_restartgame 1`);
-        execute_cfg_on_server(server_id, './cfg/warmup.cfg');
-
-        return res.status(200).json({ message: 'Warmup started!' });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const sid = req.body.server_id;
+    await runGameCmd(sid, 'mp_restartgame 1');
+    await execCfg(sid, 'warmup.cfg');
+    return res.status(200).json({ message: 'Warmup started!' });
+  } catch (err) {
+    console.error('[/api/start-warmup] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/start-knife', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_warmup_end');
-        // rcon.rcons[server_id].execute('mp_restartgame 1');
-        await rcon.execute_command(server_id, `mp_warmup_end`);
-        await rcon.execute_command(server_id, `mp_restartgame 1`);
-        execute_cfg_on_server(server_id, './cfg/knife.cfg');
-
-        return res.status(200).json({ message: 'Knife started!' });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const sid = req.body.server_id;
+    await runGameCmd(sid, 'mp_warmup_end');
+    await runGameCmd(sid, 'mp_restartgame 1');
+    await execCfg(sid, 'knife.cfg');
+    return res.status(200).json({ message: 'Knife started!' });
+  } catch (err) {
+    console.error('[/api/start-knife] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/swap-team', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_swapteams');
-        await rcon.execute_command(server_id, `mp_swapteams`);
-        return res.status(200).json({ message: 'Teams Swapped!' });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    await runGameCmd(req.body.server_id, 'mp_swapteams');
+    return res.status(200).json({ message: 'Teams swapped!' });
+  } catch (err) {
+    console.error('[/api/swap-team] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/go-live', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_warmup_end');
-        await rcon.execute_command(server_id, `mp_warmup_end`);
-        // const response = await rcon.rcons[server_id].execute('game_mode');
-        const response = await rcon.execute_command(server_id, `game_mode`);
-        const game_mode = response.split("=")[1].trim().toString();
-        if (game_mode == "1") {
-            console.log("Executing live.cfg")
-            execute_cfg_on_server(server_id, './cfg/live.cfg');
-        } else if (game_mode == "2") {
-            console.log("Executing live_wingman.cfg")
-            execute_cfg_on_server(server_id, './cfg/live_wingman.cfg');
-        }
-        // rcon.rcons[server_id].execute('mp_restartgame 1');
-        await rcon.execute_command(server_id, `mp_restartgame 1`);
-
-        return res.status(200).json({ message: 'Match is live!!' });
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const sid = req.body.server_id;
+    await runGameCmd(sid, 'mp_warmup_end');
+    await runGameCmd(sid, 'mp_restartgame 1');
+    return res.status(200).json({ message: 'Match is live!' });
+  } catch (err) {
+    console.error('[/api/go-live] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// List Round Backups API
+//
+// === ROUND BACKUPS ===
+//
 router.post('/api/list-backups', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // const response = await rcon.rcons[server_id].execute('mp_backup_restore_list_files');
-        const response = await rcon.execute_command(server_id, "mp_backup_restore_list_files");
-        console.log('Server response:', response);
-        return res.status(200).json({ message: response });
-    } catch (error) {
-        console.log(error)
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const resp = await rcon.execute_command(req.body.server_id, 'mp_backup_restore_list_files');
+    return res.status(200).json({ message: resp.toString() });
+  } catch (err) {
+    console.error('[/api/list-backups] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Restore Round API
 router.post('/api/restore-round', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        let round_number = req.body.round_number.toString()
-        if (round_number.length == 1) {
-            round_number = "0" + round_number;
-        }
-        console.log(`SENDING mp_backup_restore_load_file backup_round${round_number}.txt`)
-        // rcon.rcons[server_id].execute(`mp_backup_restore_load_file backup_round${round_number}.txt`);
-        // rcon.rcons[server_id].execute('mp_pause_match');
-        await rcon.execute_command(server_id, `mp_backup_restore_load_file backup_round${round_number}.txt`);
-        await rcon.execute_command(server_id, `mp_pause_match`);
-        return res.status(200).json({ message: 'Round Restored!' });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const sid = req.body.server_id;
+    const num = String(req.body.round_number).padStart(2, '0');
+    await runGameCmd(sid, `mp_backup_restore_load_file backup_round${num}.txt`);
+    await runGameCmd(sid, 'mp_pause_match');
+    return res.status(200).json({ message: 'Round restored!' });
+  } catch (err) {
+    console.error('[/api/restore-round] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/restore-latest-backup', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // const response = await rcon.rcons[server_id].execute('mp_backup_round_file_last');
-        const response = await rcon.execute_command(server_id, `mp_backup_round_file_last`);
-        const last_round_file = response.split("=")[1].trim().toString();
-        if (last_round_file.includes('.txt')) {
-            // rcon.rcons[server_id].execute(`mp_backup_restore_load_file ${last_round_file}`);
-            // rcon.rcons[server_id].execute('mp_pause_match');
-            await rcon.execute_command(server_id, `mp_backup_restore_load_file ${last_round_file}`);
-            await rcon.execute_command(server_id, `mp_pause_match`);
-            return res.status(200).json({ message: `Latest Round Restored! (${last_round_file})` });
-        } else {
-            return res.status(200).json({ message: 'No latest backup found!' });
-        }
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Internal server error' });
+  try {
+    const sid  = req.body.server_id;
+    const resp = await rcon.execute_command(sid, 'mp_backup_round_file_last');
+    const lastFile = resp.toString().split('=')[1]?.trim();
+    if (lastFile && lastFile.endsWith('.txt')) {
+      await runGameCmd(sid, `mp_backup_restore_load_file ${lastFile}`);
+      await runGameCmd(sid, 'mp_pause_match');
+      return res.status(200).json({ message: `Latest round restored (${lastFile})` });
+    } else {
+      return res.status(200).json({ message: 'No latest backup found!' });
     }
+  } catch (err) {
+    console.error('[/api/restore-latest-backup] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Pause Game API
+//
+// === PAUSE / UNPAUSE / RCON / SAY ===
+//
 router.post('/api/pause', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_pause_match');
-        const response = await rcon.execute_command(server_id, 'mp_pause_match');
-        return res.status(200).json({ message: 'Game paused' });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    await runGameCmd(req.body.server_id, 'mp_pause_match');
+    return res.status(200).json({ message: 'Game paused' });
+  } catch (err) {
+    console.error('[/api/pause] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-// Unpause Game API
 router.post('/api/unpause', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        // rcon.rcons[server_id].execute('mp_unpause_match');
-        const response = await rcon.execute_command(server_id, 'mp_unpause_match');
-        return res.status(200).json({ message: 'Game unpaused' });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    await runGameCmd(req.body.server_id, 'mp_unpause_match');
+    return res.status(200).json({ message: 'Game unpaused' });
+  } catch (err) {
+    console.error('[/api/unpause] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/rcon', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        const command = req.body.command;
-
-        const response = await rcon.execute_command(server_id, command);
-
-        if (response == 200) {
-            return res.status(200).json({ message: 'Command sent!' });
-        }
-
-        return res.status(200).json({ message: 'Command sent! Response received:\n' + response.toString() });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const { server_id, command } = req.body;
+    console.log(`[rcon] ${command}`);
+    const resp = await rcon.execute_command(server_id, command);
+    const msg  = resp === 200 ? 'Command sent!' : `Response:\n${resp.toString()}`;
+    return res.status(200).json({ message: msg });
+  } catch (err) {
+    console.error('[/api/rcon] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 router.post('/api/say-admin', is_authenticated, async (req, res) => {
-    try {
-        const server_id = req.body.server_id;
-        const message = req.body.message;
-        const message_to_send = "say " + message;
-        await rcon.execute_command(server_id, message_to_send);
-        return res.status(200).json({ message: 'Message sent!' });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal server error' });
-    }
+  try {
+    const sid  = req.body.server_id;
+    const text = req.body.message;
+    console.log(`[rcon] say ${text}`);
+    await rcon.execute_command(sid, `say ${text}`);
+    return res.status(200).json({ message: 'Message sent!' });
+  } catch (err) {
+    console.error('[/api/say-admin] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-function check_whitelisted_players() {
-    rcon.rcons[server_id].execute('status_json')
-        .then((response) => {
-            console.log(response)
-            const server_status = JSON.parse(response)
-            const players = server_status['server']['clients']
-            for (var i = 0; i < players.length; i++) {
-                let player = players[i]
-                if (!player.bot && player.steamid64.includes('7656') && !ALLOWED_STEAM_IDS.includes(player.steamid64)) {
-                    console.log(`kick ${player.name}`)
-                    rcon.rcons[server_id].execute(`kick ${player.name}`);
-                }
-            }
-            return;
-        })
-        .catch(console.error);
-}
-
-
-function splitByByteLength(data, length) {
-    const lines = data;
-    const exportedLines = [];
-    const lineEndChar = '; '
-    let index = 0;
-
-    for(let item = 0; item < lines.length; item++) {
-        if(typeof exportedLines[index] === "undefined") {
-            exportedLines[index] = "";
-        }
-
-        const lineFormatted = `${lines[item]}${lineEndChar}`;
-        const lineBytes = Buffer.byteLength(lineFormatted, 'utf8');
-        const bufferBytes = Buffer.byteLength(exportedLines[index], 'utf8');
-
-        if((bufferBytes + lineBytes) < length) {
-            exportedLines[index] += lineFormatted;
-        } else {
-            index++;
-        }
-    }
-
-    return exportedLines;
-}   
-
-async function execute_cfg_on_server(server_id, cfg_path) {
-
-    fs.readFile(cfg_path, 'utf8', (err, data) => {
-        if (err) {
-            throw err;
-        }
-
-        data = data.replace(/^\/\/.*$/m, '');
-        data = data.split("\n");
-        const new_data = [];
-        for (let i = 0; i < data.length; i += 1) {
-            const line = data[i].trim();
-            const segments = line.split(' ');
-
-            if(segments[0] === 'say' || segments.length == 1) {
-                new_data.push(line);
-            } else if (segments[0] !== '' && segments[0] !== '//') {
-                new_data.push(`${segments[0]} ${segments[1].split('\t')[0]}`);
-            }
-        }
-        const exported_lines = splitByByteLength(data, 512)
-
-        async function execute_next_item(item) {
-            try {
-                if (item < exported_lines.length) {
-                    console.log("Executing on server:", exported_lines[item]);
-                    // rcon.rcons[server_id].execute(exported_lines[item]);
-                    await rcon.execute_command(server_id, exported_lines[item]);
-        
-                    // Wait for 100ms before moving to the next iteration
-                    setTimeout(() => {
-                        execute_next_item(item + 1);
-                    }, 100);
-                }
-            } catch (error) {
-                console.log("[execute_next_item] Error:", error)
-            }
-        }
-        execute_next_item(0);
-    });
-}
-
-module.exports = {
-    router
-};
+module.exports = router;
