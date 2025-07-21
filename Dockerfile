@@ -1,15 +1,14 @@
-FROM node:20
-# Create app directory
-WORKDIR /usr/src/app
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-COPY package*.json ./
-RUN npm install
-RUN npm install -g nodemon
-# If you are building your code for production
-# RUN npm ci --omit=dev
-# Bundle app source
-COPY . .
+FROM node:20-bullseye-slim
+
+RUN apt-get update \
+  && apt-get install -y python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /home/container
+
+RUN mkdir -p /home/container/data \
+  && chmod -R 777 /home/container/data
+
 EXPOSE 3000
-CMD [ "node", "app.js" ]
+
+CMD ["node", "app.js"]
