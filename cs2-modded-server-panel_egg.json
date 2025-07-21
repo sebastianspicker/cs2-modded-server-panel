@@ -10,7 +10,7 @@
     "sebastianspicker/cs2-modded-server-panel:latest": "sebastianspicker/cs2-modded-server-panel:latest"
   },
   "file_denylist": [],
-  "startup": "PORT=${DEFAULT_PORT} node /usr/src/app/app.js",
+  "startup": "PORT=${DEFAULT_PORT} node app.js",
   "config": {
     "files": "{}",
     "startup": "{\n  \"done\": \"Server is running on ${DEFAULT_PORT}.\"\n}",
@@ -19,9 +19,9 @@
   },
   "scripts": {
     "installation": {
-	"script": "#!/bin/bash\nset -e\ncat > .env <<EOF\nDEFAULT_USERNAME=${DEFAULT_USERNAME}\nDEFAULT_PASSWORD=${DEFAULT_PASSWORD}\nPORT=${DEFAULT_PORT}\nEOF\n"
-	"container": "node:20-bullseye-slim",
-    "entrypoint": "bash"
+      "script": "#!/bin/bash\nset -e\n\n# Hole den Code aus GitHub\nrm -rf /home/container/*\ngit clone --depth=1 https://github.com/sebastianspicker/cs2-modded-server-panel.git /home/container\ncd /home/container\n\n# Schreibe Umgebungsvariablen\ncat > .env <<EOF\nDEFAULT_USERNAME=${DEFAULT_USERNAME}\nDEFAULT_PASSWORD=${DEFAULT_PASSWORD}\nPORT=${DEFAULT_PORT}\nEOF\n\n# Installiere Node-Module (prod, native bcrypt)\nnpm ci --omit=dev --build-from-source=bcrypt\n\nchown -R 1000:1000 /home/container\n",
+      "container": "node:20-bullseye-slim",
+      "entrypoint": "bash"
     }
   },
   "variables": [
