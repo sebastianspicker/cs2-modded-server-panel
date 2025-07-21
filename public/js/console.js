@@ -1,225 +1,400 @@
+// public/js/console.js
 $(document).ready(function () {
-    const current_path = window.location.pathname;
+  const currentPath = window.location.pathname;
 
-    function fetch_servers() {
-        $.ajax({
-            url: '/api/servers',
-            type: 'GET',
-            success: function (data) {
-                $('#serverList').empty();
+  //
+  // === OVERVIEW PAGE: /servers ===
+  //
+  if (currentPath === '/servers') {
+    fetchServers();
+  }
 
-                data.servers.forEach(function (server) {
-                    const card = `
-                <div class="card server-card">
-                  <div class="card-header">
-                    <h3 class="card-title">${server.hostname} (${server.serverIP}:${server.serverPort})</h3>
-                  </div>
-                  <div class="card-body">
-                    RCON Password: <input type="password" id="rconPassword" class="rcon-password-${server.id}" value="${server.rconPassword}" class="password-mask" disabled>
-                    <button class="btn btn-sm btn-secondary toggle-password" server-id="${server.id}" class="hide-unhide-rcon">
-                      <i class="fa fa-eye" server-id="${server.id}" id="toggleEyeIcon-${server.id}"></i>
-                    </button>
-                    <p class="status connected-status ${server.connected ? 'connected' : 'disconnected'}">
-                      RCON Connected: ${server.connected ? 'Yes' : 'No'}
-                    </p>
-                    <p class="status authenticated-status ${server.authenticated ? 'authenticated' : 'not-authenticated'}">
-                      RCON Authenticated: ${server.authenticated ? 'Yes' : 'No'}
-                    </p>
-                    ${(!server.connected || !server.authenticated) ? '<button class="btn btn-success" server-id="' + server.id + '" id="reconnect_server">Reconnect</button>' : ''}
-                    <a href="/manage/${server.id}" class="btn btn-primary">Manage</a>
-                    <button class="btn btn-danger" server-id='${server.id}' id="delete_server">Delete</button>
-                  </div>
-                </div>
-              `;
-                    $('#serverList').append(card);
-                });
-                $(".toggle-password").click((event) => {
-                    let server_id = $(event.target).attr("server-id");
-                    toggle_password_visibility(server_id)
-                });
-                $("#reconnect_server").click(async (element) => {
-                    try {
-                        const server_id = $(element.target).attr("server-id");
-                        const response = await $.ajax({
-                            url: '/api/reconnect-server',
-                            type: 'POST',
-                            data: JSON.stringify({ server_id: server_id }),
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                        });
-                        if (response.status === 200) {
-                            fetch_servers();
-                        } else {
-                            console.error('Server responded with a non-200 status code:', response.status);
-                            alert('An error occurred while reconnecting to the server.');
-                        }
-                    } catch (error) {
-                        console.error(error);
-                        alert('An error occurred while reconnecting to the server.');
-                    }
-                });
-                $("#delete_server").click(async (element) => {
-                    const confirmed = confirm("Are you sure you want to delete this server?");
-                    if (confirmed) {
-                        window.server_id = $(element.target).attr("server-id");
-                        await send_post_request("/api/delete-server");
-                        fetch_servers();
-                    }
-                });
-            },
-            error: function (error) {
-                console.error(error);
-                alert('An error occurred while fetching servers.');
-            },
-        });
-    }
-    if (current_path == "/servers") {
-        fetch_servers();
-    }
-
-    function toggle_password_visibility(server_id) {
-        const password_field = document.getElementsByClassName("rcon-password-" + server_id)[0]
-        const eye_icon = document.getElementById(`toggleEyeIcon-${server_id}`);
-      
-        if (password_field.type === 'password') {
-            password_field.type = 'text';
-            eye_icon.classList.remove('fa-eye');
-            eye_icon.classList.add('fa-eye-slash');
-        } else {
-            password_field.type = 'password';
-            eye_icon.classList.remove('fa-eye-slash');
-            eye_icon.classList.add('fa-eye');
-        }
-      }
-
-    async function send_post_request(apiEndpoint, data = {}) {
+  // Fetch & render server cards
+  function fetchServers() {
+    $.ajax({ url: '/api/servers', type: 'GET' })
+      .done(data => {
         try {
-            data.server_id = window.server_id
-            const response = await fetch(apiEndpoint, {
-                method: 'POST',
-                body: JSON.stringify(data),
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log(data.message)
-                if(apiEndpoint == '/api/rcon') {
-                    if (data.message.includes("Response received")) {
-                        $('#rconResultBox').show();
-                        $('#rconResultText').text(data.message.split("Command sent! Response received:")[1]);
-                    } else {
-                        $('#rconResultBox').hide();
-                        alert(data.message);
-                    }
-                } else {
-                    alert(data.message);
-                }
-            } else if (response.status == 401) {
-                alert('Unauthorized, please reload and relogin.');
-            } 
-            else {
-                alert('Failed to perform the action');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred');
+          const $list = $('#serverList').empty();
+          data.servers.forEach(server => {
+            const card = `
+              <div class="card server-card mb-3">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    ${server.hostname} (${server.serverIP}:${server.serverPort})
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="mb-2">
+                    RCON Password:
+                    <input
+                      type="password"
+                      class="form-control d-inline-block rcon-password-${server.id}"
+                      value="${server.rconPassword}"
+                      disabled
+                      style="width:auto;"
+                    />
+                    <button
+                      class="btn btn-sm btn-secondary toggle-password"
+                      data-server-id="${server.id}"
+                    >
+                      <i class="fa fa-eye" id="toggleEyeIcon-${server.id}"></i>
+                    </button>
+                  </div>
+                  <p class="status mb-1">
+                    RCON Connected:
+                    <strong>${server.connected ? 'Yes' : 'No'}</strong>
+                  </p>
+                  <p class="status mb-3">
+                    RCON Authenticated:
+                    <strong>${server.authenticated ? 'Yes' : 'No'}</strong>
+                  </p>
+                  ${(!server.connected || !server.authenticated)
+                    ? `<button
+                         class="btn btn-sm btn-success reconnect-server"
+                         data-server-id="${server.id}"
+                       >Reconnect</button>`
+                    : ''
+                  }
+                  <a href="/manage/${server.id}" class="btn btn-sm btn-primary">Manage</a>
+                  <button
+                    class="btn btn-sm btn-danger delete-server"
+                    data-server-id="${server.id}"
+                  >Delete</button>
+                </div>
+              </div>
+            `;
+            $list.append(card);
+          });
+        } catch (renderErr) {
+          console.error('Render error:', renderErr);
+          alert('Ein Fehler beim Anzeigen der Server ist aufgetreten.');
         }
+      })
+      .fail((_, textStatus, err) => {
+        console.error('Fetch servers failed:', textStatus, err);
+        alert('Konnte Serverliste nicht laden.');
+      });
+  }
+
+  //
+  // === DELEGATED EVENT HANDLERS FOR OVERVIEW ===
+  //
+  $('#serverList')
+    .on('click', '.toggle-password', function () {
+      const sid    = $(this).data('server-id');
+      const $input = $(`.rcon-password-${sid}`);
+      const $icon  = $(`#toggleEyeIcon-${sid}`);
+      if ($input.attr('type') === 'password') {
+        $input.attr('type', 'text');
+        $icon.removeClass('fa-eye').addClass('fa-eye-slash');
+      } else {
+        $input.attr('type', 'password');
+        $icon.removeClass('fa-eye-slash').addClass('fa-eye');
+      }
+    })
+    .on('click', '.reconnect-server', function () {
+      const sid = $(this).data('server-id');
+      sendPostRequest('/api/reconnect-server', { server_id: sid })
+        .then(() => {
+          alert('Reconnected successfully');
+          fetchServers();
+        })
+        .catch(() => alert('Reconnect fehlgeschlagen.'));
+    })
+    .on('click', '.delete-server', function () {
+      const sid = $(this).data('server-id');
+      if (!confirm('Server wirklich löschen?')) return;
+      sendPostRequest('/api/delete-server', { server_id: sid })
+        .then(() => fetchServers())
+        .catch(() => alert('Löschen fehlgeschlagen.'));
+    });
+
+  //
+  // === MANAGE PAGE: /manage/:id ===
+  //
+  if (currentPath.startsWith('/manage/')) {
+    // --- Helpers to load game types/maps ---
+    const $gameType  = $('#gameType');
+    const $gameMode  = $('#gameMode');
+    const $mapSelect = $('#selectedMap');
+
+    async function loadGameModes(type) {
+      try {
+        const resp = await fetch(`/api/game-types/${encodeURIComponent(type)}/game-modes`);
+        if (!resp.ok) throw new Error(`Status ${resp.status}`);
+        const { gameModes: modes } = await resp.json();
+        $gameMode.empty();
+        if (modes.length) {
+          modes.forEach(m => $gameMode.append(`<option>${m}</option>`));
+          loadMaps(type, modes[0]);
+        } else {
+          $gameMode.append('<option disabled>Keine Spielmodi verfügbar</option>');
+          $mapSelect.empty().append('<option disabled>Keine Karten verfügbar</option>');
+        }
+      } catch (err) {
+        console.error('loadGameModes error:', err);
+        alert('Konnte Spielmodi nicht laden.');
+      }
     }
 
-    $('#pause_game').on('click', function () {
-        if (confirm("Are you sure you want to pause the game?")) {
-            send_post_request('/api/pause');
-        }
-    });
-    
-    $('#unpause_game').on('click', function () {
-        if (confirm("Are you sure you want to unpause the game?")) {
-            send_post_request('/api/unpause');
-        }
-    });
-    
-    $('#restart_game').on('click', function () {
-        if (confirm("Are you sure you want to restart the game?")) {
-            send_post_request('/api/restart');
-        }
-    });
-    
-    $('#start_warmup').on('click', function () {
-        if (confirm("Are you sure you want to start the warm-up?")) {
-            send_post_request('/api/start-warmup');
-        }
-    });
-    
-    $('#knife_start').on('click', function () {
-        if (confirm("Are you sure you want to start the knife round?")) {
-            send_post_request('/api/start-knife');
-        }
-    });
-    
-    $('#swap_team').on('click', function () {
-        if (confirm("Are you sure you want to swap teams?")) {
-            send_post_request('/api/swap-team');
-        }
-    });
-    
-    $('#go_live').on('click', function () {
-        if (confirm("Are you sure you want to go live?")) {
-            send_post_request('/api/go-live');
-        }
-    });
-
-    $('#rconInputBtn').on('click', function () {
-        let data = {
-            command: $('#rconInput').val()
-        };
-        send_post_request('/api/rcon', data);
-        $('#rconInput').val('');
-    });
-
-    $('#say_input_btn').on('click', function () {
-        let data = {
-            message: $('#say_input').val()
-        };
-        send_post_request('/api/say-admin', data);
-        $('#say_input').val('');
-    });
-
-    $('#list_backups').on('click', function () {
-        send_post_request('/api/list-backups');
-    });
-
-    $('#restore_latest_backup').on('click', function () {
-        if (confirm("Are you sure you want to restore the latest round backup?")) {
-            send_post_request('/api/restore-latest-backup');
-        }
-    });
-
-    $('#restore_backup').on('click', function () {
-        const round_number = prompt('Enter round number to restore:');
-        if (round_number !== null && round_number.trim() !== '') {
-            const round_number_value = parseInt(round_number);
-            if (!isNaN(round_number_value)) {
-                send_post_request('/api/restore-round', { round_number: round_number_value });
-            } else {
-                alert('Invalid round number. Please enter a valid number.');
-            }
+    async function loadMaps(type, mode) {
+      try {
+        const resp = await fetch(
+          `/api/game-types/${encodeURIComponent(type)}/game-modes/${encodeURIComponent(mode)}/maps`
+        );
+        if (!resp.ok) throw new Error(`Status ${resp.status}`);
+        const { maps } = await resp.json();
+        $mapSelect.empty();
+        if (maps.length) {
+          maps.forEach(m => $mapSelect.append(`<option>${m}</option>`));
         } else {
-            alert('Round number cannot be empty. Please enter a valid number.');
+          $mapSelect.append('<option disabled>Keine Karten verfügbar</option>');
         }
+      } catch (err) {
+        console.error('loadMaps error:', err);
+        alert('Konnte Karten nicht laden.');
+      }
+    }
+
+    // initial
+    loadGameModes($gameType.val());
+    $gameType.on('change', () => loadGameModes($gameType.val()));
+    $gameMode.on('change', () => loadMaps($gameType.val(), $gameMode.val()));
+
+    // --- New Quick Commands ---
+    const quickCommands = [
+      { selector: '#scramble_teams',     endpoint: '/api/scramble-teams' },
+      { selector: '#kick_all_bots',      endpoint: '/api/kick-all-bots' },
+      { selector: '#add_bot',            endpoint: '/api/add-bot' },
+      { selector: '#kill_bots',          endpoint: '/api/kill-bots' },
+    ];
+
+    quickCommands.forEach(cmd => {
+      $(cmd.selector).click(() => {
+        sendPostRequest(cmd.endpoint, { server_id: window.server_id })
+          .then(d => alert(d.message))
+          .catch(() => alert('Quick Command fehlgeschlagen.'));
+      });
     });
-    $('#server_setup_form').on('submit', async function (event) {
-        event.preventDefault();
-        const data = {
-            team1: $('#team1').val(),
-            team2: $('#team2').val(),
-            selectedMap: $('#selectedMap').val(),
-            game_mode: $('#game_mode').val(),
-            server_id: window.server_id
-        };
-        send_post_request('/api/setup-game', data);
+    $('#limitteams_on').click(() =>
+  sendPostRequest('/api/limitteams-toggle', { server_id: window.server_id, value: 1 })
+    .then(d => alert(d.message))
+    .catch(() => alert('LimitTeams On failed.'))
+);
+$('#limitteams_off').click(() =>
+  sendPostRequest('/api/limitteams-toggle', { server_id: window.server_id, value: 0 })
+    .then(d => alert(d.message))
+    .catch(() => alert('LimitTeams Off failed.'))
+);
+
+$('#autoteam_on').click(() =>
+  sendPostRequest('/api/autoteam-toggle', { server_id: window.server_id, value: 1 })
+    .then(d => alert(d.message))
+    .catch(() => alert('AutoBalance On failed.'))
+);
+$('#autoteam_off').click(() =>
+  sendPostRequest('/api/autoteam-toggle', { server_id: window.server_id, value: 0 })
+    .then(d => alert(d.message))
+    .catch(() => alert('AutoBalance Off failed.'))
+);
+
+$('#friendlyfire_on').click(() =>
+  sendPostRequest('/api/friendlyfire-toggle', { server_id: window.server_id, value: 1 })
+    .then(d => alert(d.message))
+    .catch(() => alert('FriendlyFire On failed.'))
+);
+$('#friendlyfire_off').click(() =>
+  sendPostRequest('/api/friendlyfire-toggle', { server_id: window.server_id, value: 0 })
+    .then(d => alert(d.message))
+    .catch(() => alert('FriendlyFire Off failed.'))
+);
+
+$('#autokick_on').click(() =>
+  sendPostRequest('/api/autokick-toggle', { server_id: window.server_id, value: 1 })
+    .then(d => alert(d.message))
+    .catch(() => alert('AutoKick On failed.'))
+);
+$('#autokick_off').click(() =>
+  sendPostRequest('/api/autokick-toggle', { server_id: window.server_id, value: 0 })
+    .then(d => alert(d.message))
+    .catch(() => alert('AutoKick Off failed.'))
+);
+
+    // --- Existing Action Buttons ---
+    $('#pause_game').click(() => {
+      if (!confirm('Pause the game?')) return;
+      sendPostRequest('/api/pause', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Pause fehlgeschlagen.'));
     });
+    $('#unpause_game').click(() => {
+      if (!confirm('Unpause the game?')) return;
+      sendPostRequest('/api/unpause', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Unpause fehlgeschlagen.'));
+    });
+    $('#restart_game').click(() => {
+      if (!confirm('Restart the game?')) return;
+      sendPostRequest('/api/restart', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Restart fehlgeschlagen.'));
+    });
+    $('#start_warmup').click(() => {
+      if (!confirm('Start warmup?')) return;
+      sendPostRequest('/api/start-warmup', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Warmup fehlgeschlagen.'));
+    });
+    $('#knife_start').click(() => {
+      if (!confirm('Start knife round?')) return;
+      sendPostRequest('/api/start-knife', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Knife start fehlgeschlagen.'));
+    });
+    $('#swap_team').click(() => {
+      if (!confirm('Swap teams?')) return;
+      sendPostRequest('/api/swap-team', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Swap teams fehlgeschlagen.'));
+    });
+    $('#go_live').click(() => {
+      if (!confirm('Go live?')) return;
+      sendPostRequest('/api/go-live', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Go live fehlgeschlagen.'));
+    });
+
+    // --- RCON Commands & Say ---
+    $('#say_input_btn').click(() => {
+      const msg = $('#say_input').val().trim();
+      if (!msg) return alert('Nachricht darf nicht leer sein.');
+      sendPostRequest('/api/say-admin', {
+        server_id: window.server_id,
+        message: msg
+      })
+      .then(d => alert(d.message))
+      .catch(() => alert('Nachricht senden fehlgeschlagen.'));
+      $('#say_input').val('');
+    });
+    $('#rconInputBtn').click(() => {
+      const cmd = $('#rconInput').val().trim();
+      if (!cmd) return alert('Kommando darf nicht leer sein.');
+      sendPostRequest('/api/rcon', {
+        server_id: window.server_id,
+        command: cmd
+      })
+      .then(d => {
+        if (d.message.includes('Response')) {
+          $('#rconResultBox').show();
+          $('#rconResultText').text(d.message.replace(/^.*Response:\s*/, ''));
+        } else {
+          $('#rconResultBox').hide();
+          alert(d.message);
+        }
+      })
+      .catch(() => alert('RCON-Kommando fehlgeschlagen.'));
+      $('#rconInput').val('');
+    });
+
+    // --- Backups ---
+    $('#list_backups').click(() => {
+      sendPostRequest('/api/list-backups', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('List backups failed.'));
+    });
+    $('#restore_latest_backup').click(() => {
+      if (!confirm('Restore latest backup?')) return;
+      sendPostRequest('/api/restore-latest-backup', { server_id: window.server_id })
+        .then(d => alert(d.message))
+        .catch(() => alert('Restore latest fehlgeschlagen.'));
+    });
+    $('#restore_backup').click(() => {
+      const num = prompt('Enter round number to restore:');
+      const n   = parseInt(num, 10);
+      if (isNaN(n)) return alert('Invalid round number');
+      sendPostRequest('/api/restore-round', {
+        server_id: window.server_id,
+        round_number: n
+      })
+      .then(d => alert(d.message))
+      .catch(() => alert('Restore fehlgeschlagen.'));
+    });
+
+    // --- Setup‐game form handler ---
+    $('#server_setup_form').submit(function (e) {
+      e.preventDefault();
+      const payload = {
+        server_id:   window.server_id,
+        team1:       $('#team1').val(),
+        team2:       $('#team2').val(),
+        game_type:   $('#gameType').val(),
+        game_mode:   $('#gameMode').val(),
+        selectedMap: $('#selectedMap').val()
+      };
+      sendPostRequest('/api/setup-game', payload)
+        .then(d => alert(d.message))
+        .catch(() => alert('Setup Game failed.'));
+    });
+
+    // --- Apply plugins override ---
+    $('#apply_plugins').click(e => {
+      e.preventDefault();
+      const enable  = $('.plugin-checkbox:checked').map((_,el) => el.value).get();
+      const all     = window.rootPlugins.concat(window.disabledPlugins);
+      const disable = all.filter(p => !enable.includes(p));
+      sendPostRequest('/api/plugins/apply', {
+        server_id: window.server_id,
+        enable,
+        disable
+      })
+      .then(d => alert(d.message))
+      .catch(() => alert('Plugin-Override via RCON fehlgeschlagen.'));
+    });
+
+    //
+    // === LIVE-STATUS: nur eine einzige Funktion ===
+    //
+    async function fetchLiveStatus() {
+      try {
+        const resp = await fetch(`/api/status/${window.server_id}`);
+        if (!resp.ok) throw new Error(`Status ${resp.status}`);
+        const data = await resp.json();
+
+        // Fünf Felder aktualisieren:
+        document.getElementById('live-map').textContent       = data.map           || '–';
+        document.getElementById('live-humans').textContent    = data.humans  != null ? data.humans  : '–';
+        document.getElementById('live-bots').textContent      = data.bots    != null ? data.bots    : '–';
+        document.getElementById('last-game-type').textContent = data.last_game_type || '–';
+        document.getElementById('last-game-mode').textContent = data.last_game_mode || '–';
+
+      } catch (err) {
+        console.error('Live-Status fehlerhaft:', err);
+      }
+    }
+
+    // Bei Seitenaufruf und Klick auf “Refresh”
+    fetchLiveStatus();
+    $('#refresh_status').click(fetchLiveStatus);
+  }
+
+  //
+  // === HELPER: JSON POST ===
+  //
+  async function sendPostRequest(endpoint, data = {}) {
+    try {
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!resp.ok) {
+        if (resp.status === 401) throw new Error('Unauthorized');
+        throw new Error(`Status ${resp.status}`);
+      }
+      return await resp.json();
+    } catch (err) {
+      console.error(`Error POST ${endpoint}:`, err);
+      throw err;
+    }
+  }
 });
