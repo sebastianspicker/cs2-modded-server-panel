@@ -19,7 +19,7 @@ const authRoutes   = require('./routes/auth');
 // Neu: Status-Routen importieren
 const statusRoutes = require('./routes/status');
 
-const port = 3000;
+const port = process.env.DEFAULT_PORT || 3000;
 
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
