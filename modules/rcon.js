@@ -4,16 +4,16 @@ const { better_sqlite_client } = require('../db');
 
 class RconManager {
   constructor() {
-    this.rcons     = {};
-    this.details   = {};
-    this.servers   = {};
+    this.rcons = {};
+    this.details = {};
+    this.servers = {};
     this.init();
   }
 
   /** Initialisiert Verbindungen zu allen in der DB stehenden Servern */
   async init() {
     try {
-      const stmt    = better_sqlite_client.prepare('SELECT * FROM servers');
+      const stmt = better_sqlite_client.prepare('SELECT * FROM servers');
       const servers = stmt.all();
       console.log('All servers in DB:', servers);
       for (const server of servers) {
@@ -54,7 +54,7 @@ class RconManager {
         // Timeout‐protect
         const resp = await Promise.race([
           conn.execute(command),
-          new Promise(res => setTimeout(() => res({ error: 'timeout' }), 200))
+          new Promise((res) => setTimeout(() => res({ error: 'timeout' }), 200)),
         ]);
 
         if (resp && resp.error) {
@@ -93,7 +93,7 @@ class RconManager {
     try {
       await Promise.race([
         this.rcons[server_id].execute('status'),
-        new Promise((_, rej) => setTimeout(() => rej('timeout'), 5000))
+        new Promise((_, rej) => setTimeout(() => rej('timeout'), 5000)),
       ]);
       console.log('HEARTBEAT SUCCESS', server_id);
     } catch (err) {
@@ -109,7 +109,7 @@ class RconManager {
       const conn = new Rcon({
         host: server.serverIP,
         port: server.serverPort,
-        timeout: 5000
+        timeout: 5000,
       });
       console.log('CONNECTING RCON', server_id, server.serverIP, server.serverPort);
 
@@ -134,7 +134,7 @@ class RconManager {
         port: server.serverPort,
         rcon_password: server.rconPassword,
         connected: conn.isConnected(),
-        authenticated: conn.isAuthenticated()
+        authenticated: conn.isAuthenticated(),
       };
 
       if (conn.isConnected() && conn.isAuthenticated()) {
@@ -156,9 +156,9 @@ class RconManager {
 
     clearInterval(this.details[server_id]?.heartbeat_interval);
     conn.authenticated = false;
-    conn.connected     = false;
+    conn.connected = false;
 
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       conn.connection.once('close', () => resolve());
       conn.connection.once('error', () => resolve());
       conn.connection.end();

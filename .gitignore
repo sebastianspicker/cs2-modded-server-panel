@@ -1,2 +1,7 @@
 node_modules
 *.db
+.env
+data/
+npm-debug.log*
+
+!data/.gitkeep

@@ -1,8 +1,8 @@
 // routes/game.js
 const express = require('express');
 const router = express.Router();
-const mapsConfig      = require('../cfg/maps.json');
-const rcon             = require('../modules/rcon');
+const mapsConfig = require('../cfg/maps.json');
+const rcon = require('../modules/rcon');
 const is_authenticated = require('../modules/middleware');
 const { better_sqlite_client } = require('../db');
 
@@ -14,21 +14,6 @@ const { better_sqlite_client } = require('../db');
 async function runGameCmd(server_id, cmd) {
   console.log(`[setup-game] ${cmd}`);
   await rcon.execute_command(server_id, cmd);
-}
-
-/**
- * Liest den aktuellen Wert eines ConVars und toggled ihn zwischen 0 und 1.
- * @param {string} server_id
- * @param {string} convar — z.B. 'mp_limitteams'
- */
-async function toggleConvar(server_id, convar) {
-  // Erst Konsole ohne Argument ausführen, um den aktuellen Wert zu bekommen
-  const resp = await rcon.execute_command(server_id, convar);
-  const current = parseInt(resp.toString().trim(), 10) || 0;
-  const next = current === 0 ? 1 : 0;
-  console.log(`[setup-game] ${convar} ${next}`);
-  await rcon.execute_command(server_id, `${convar} ${next}`);
-  return next;
 }
 
 /**
@@ -45,14 +30,7 @@ async function execCfg(server_id, cfgName) {
 //
 router.post('/api/setup-game', is_authenticated, async (req, res) => {
   try {
-    const {
-      server_id,
-      team1 = '',
-      team2 = '',
-      game_type,
-      game_mode,
-      selectedMap
-    } = req.body;
+    const { server_id, team1 = '', team2 = '', game_type, game_mode, selectedMap } = req.body;
 
     // 1) Team‐Namen setzen (falls angegeben)
     if (team1.trim()) {
@@ -146,9 +124,7 @@ router.post('/api/limitteams-toggle', is_authenticated, async (req, res) => {
     const { server_id, value } = req.body;
     // value muss 0 oder 1 sein
     await runGameCmd(server_id, `mp_limitteams ${value}`);
-    return res
-      .status(200)
-      .json({ message: `mp_limitteams set to ${value}` });
+    return res.status(200).json({ message: `mp_limitteams set to ${value}` });
   } catch (err) {
     console.error('[/api/limitteams-toggle] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -160,9 +136,7 @@ router.post('/api/autoteam-toggle', is_authenticated, async (req, res) => {
   try {
     const { server_id, value } = req.body;
     await runGameCmd(server_id, `mp_autoteambalance ${value}`);
-    return res
-      .status(200)
-      .json({ message: `mp_autoteambalance set to ${value}` });
+    return res.status(200).json({ message: `mp_autoteambalance set to ${value}` });
   } catch (err) {
     console.error('[/api/autoteam-toggle] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -174,9 +148,7 @@ router.post('/api/friendlyfire-toggle', is_authenticated, async (req, res) => {
   try {
     const { server_id, value } = req.body;
     await runGameCmd(server_id, `mp_friendlyfire ${value}`);
-    return res
-      .status(200)
-      .json({ message: `mp_friendlyfire set to ${value}` });
+    return res.status(200).json({ message: `mp_friendlyfire set to ${value}` });
   } catch (err) {
     console.error('[/api/friendlyfire-toggle] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -188,9 +160,7 @@ router.post('/api/autokick-toggle', is_authenticated, async (req, res) => {
   try {
     const { server_id, value } = req.body;
     await runGameCmd(server_id, `mp_autokick ${value}`);
-    return res
-      .status(200)
-      .json({ message: `mp_autokick set to ${value}` });
+    return res.status(200).json({ message: `mp_autokick set to ${value}` });
   } catch (err) {
     console.error('[/api/autokick-toggle] Error:', err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -297,7 +267,7 @@ router.post('/api/restore-round', is_authenticated, async (req, res) => {
 
 router.post('/api/restore-latest-backup', is_authenticated, async (req, res) => {
   try {
-    const sid  = req.body.server_id;
+    const sid = req.body.server_id;
     const resp = await rcon.execute_command(sid, 'mp_backup_round_file_last');
     const lastFile = resp.toString().split('=')[1]?.trim();
     if (lastFile && lastFile.endsWith('.txt')) {
@@ -341,7 +311,7 @@ router.post('/api/rcon', is_authenticated, async (req, res) => {
     const { server_id, command } = req.body;
     console.log(`[rcon] ${command}`);
     const resp = await rcon.execute_command(server_id, command);
-    const msg  = resp === 200 ? 'Command sent!' : `Response:\n${resp.toString()}`;
+    const msg = resp === 200 ? 'Command sent!' : `Response:\n${resp.toString()}`;
     return res.status(200).json({ message: msg });
   } catch (err) {
     console.error('[/api/rcon] Error:', err);
@@ -351,7 +321,7 @@ router.post('/api/rcon', is_authenticated, async (req, res) => {
 
 router.post('/api/say-admin', is_authenticated, async (req, res) => {
   try {
-    const sid  = req.body.server_id;
+    const sid = req.body.server_id;
     const text = req.body.message;
     console.log(`[rcon] say ${text}`);
     await rcon.execute_command(sid, `say ${text}`);

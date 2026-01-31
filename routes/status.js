@@ -39,7 +39,7 @@ router.get('/api/status/:server_id', is_authenticated, async (req, res) => {
       const m = text.match(/players\s*:\s*(\d+)\s*humans,\s*(\d+)\s*bots/i);
       if (m) {
         humanCount = parseInt(m[1], 10);
-        botCount   = parseInt(m[2], 10);
+        botCount = parseInt(m[2], 10);
       }
     } catch (err) {
       console.error(`[status] RCON status error for server ${serverId}:`, err);
@@ -48,11 +48,11 @@ router.get('/api/status/:server_id', is_authenticated, async (req, res) => {
 
     // 4) Return combined status, with "map" instead of "last_map"
     return res.json({
-      map:             row.last_map       || null,
-      last_game_type:  row.last_game_type || null,
-      last_game_mode:  row.last_game_mode || null,
-      humans:          humanCount,
-      bots:            botCount
+      map: row.last_map || null,
+      last_game_type: row.last_game_type || null,
+      last_game_mode: row.last_game_mode || null,
+      humans: humanCount,
+      bots: botCount,
     });
   } catch (err) {
     console.error('[status] Error fetching status:', err);

@@ -28,19 +28,49 @@ docker build -t cs2-modded-server-panel .
 docker run -d -p 3000:3000 \
   -e DEFAULT_USERNAME=youradmin \
   -e DEFAULT_PASSWORD=yourpassword \
+  -e PORT=3000 \
   cs2-modded-server-panel
 ```
 
 Panel will be available at `http://localhost:3000`.
 
-## Environment Variables
-Variable	Description	Default
-`DEFAULT_USERNAME`	Default admin login username	`cspanel`
-`DEFAULT_PASSWORD`	Default admin login password	`v67ic55x4ghvjfj`
-`PORT`	Port the panel runs on	`3000`
+### Local setup (non-Pterodactyl)
 
+```bash
+cat .nvmrc
+npm ci
+cp .env.example .env
+npm run dev
+```
+
+### Validation (CI-friendly)
+
+```bash
+# Shell lint + format check, and JSON/YAML validation
+npm run validate
+
+# Additionally enforce Docker build + compose config (requires Docker daemon)
+npm run validate -- --require-docker
+
+# JS format/lint/tests + full ops validation (used in GitHub Actions)
+npm run ci
+```
+
+## Environment Variables
+
+| Variable           | Description                  | Default                           |
+| ------------------ | ---------------------------- | --------------------------------- |
+| `DEFAULT_USERNAME` | Default admin login username | `cspanel`                         |
+| `DEFAULT_PASSWORD` | Default admin login password | `v67ic55x4ghvjfj`                 |
+| `PORT`             | Port the panel runs on       | `3000`                            |
+| `DB_PATH`          | SQLite DB file path          | `/home/container/data/cspanel.db` |
+
+## Notes
+
+- `scripts/pterodactyl-install.sh` mirrors the Egg’s embedded install script (for review + shellcheck).
 
 ## Project Structure
+
 ```
 ├── app.js
 ├── db.js

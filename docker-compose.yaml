@@ -1,7 +1,12 @@
-version: "3.3"
 services:
   cs2rcon:
     build:
       context: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
+    environment:
+      DEFAULT_USERNAME: cspanel
+      DEFAULT_PASSWORD: v67ic55x4ghvjfj
+      PORT: 3000
+    volumes:
+      - ./data:/home/container/data

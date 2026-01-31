@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck ruby-full
+          if ! command -v shfmt >/dev/null 2>&1; then
+            sudo apt-get install -y shfmt || true
+          fi
+          if ! command -v shfmt >/dev/null 2>&1; then
+            curl -fsSL \
+              https://github.com/mvdan/sh/releases/download/v3.8.0/shfmt_v3.8.0_linux_amd64 \
+              -o /usr/local/bin/shfmt
+            sudo chmod +x /usr/local/bin/shfmt
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run ci

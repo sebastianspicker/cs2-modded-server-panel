@@ -2,10 +2,17 @@
   "name": "cs2panel",
   "version": "1.0.0",
   "description": "RCON Web Panel to control CS2 Servers.",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
-    "start": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "format:shell": "./scripts/format.sh",
+    "validate": "./scripts/validate.sh",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "format:check": "prettier -c .",
+    "test": "node --test",
+    "ci": "npm run format:check && npm run lint && npm test && npm run validate -- --require-docker"
   },
   "keywords": [],
   "author": "",
@@ -20,5 +27,13 @@
     "rcon-srcds": "^2.0.2",
     "sqlite3": "^5.1.6",
     "srcds-rcon": "^2.2.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.19.0",
+    "nodemon": "^3.0.3",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20 <23"
   }
 }
