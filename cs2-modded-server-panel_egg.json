@@ -22,7 +22,7 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!\/bin\/bash\r\nset -e\r\n\r\n# Clean old code including dotfiles\r\nrm -rf \/home\/container\/* \/home\/container\/.[!.]* \/home\/container\/..?*\r\n\r\n# Clone fresh code from GitHub\r\ngit clone --depth=1 https:\/\/github.com\/sebastianspicker\/cs2-modded-server-panel.git \/home\/container\r\ncd \/home\/container\r\n\r\n# Write environment variables\r\ncat > .env <<EOF\r\nDEFAULT_USERNAME=${DEFAULT_USERNAME}\r\nDEFAULT_PASSWORD=${DEFAULT_PASSWORD}\r\nPORT=${DEFAULT_PORT}\r\nEOF\r\n\r\n# Install production dependencies with native bcrypt\r\nnpm ci --omit=dev --build-from-source=bcrypt\r\n\r\n# (Optional) Show commit\r\ngit rev-parse --short HEAD || true\r\n\r\n# Set permissions for Pterodactyl\r\nchown -R 1000:1000 \/home\/container",
+            "script": "#!\/bin\/bash\r\nset -e\r\n\r\n# Clean old code including dotfiles\r\nrm -rf \/home\/container\/* \/home\/container\/.[!.]* \/home\/container\/..?*\r\n\r\n# Clone fresh code from GitHub\r\ngit clone https:\/\/github.com\/sebastianspicker\/cs2-modded-server-panel.git \/home\/container\r\ncd \/home\/container\r\ngit checkout cddb89c986349426a13b75ea3b86a7fae0914d8e\r\n\r\n# Write environment variables\r\ncat > .env <<EOF\r\nDEFAULT_USERNAME=${DEFAULT_USERNAME}\r\nDEFAULT_PASSWORD=${DEFAULT_PASSWORD}\r\nALLOW_DEFAULT_CREDENTIALS=${ALLOW_DEFAULT_CREDENTIALS}\r\nPORT=${DEFAULT_PORT}\r\nEOF\r\n\r\n# Install production dependencies with native bcrypt\r\nnpm ci --omit=dev --build-from-source=bcrypt\r\n\r\n# (Optional) Show commit\r\ngit rev-parse --short HEAD || true\r\n\r\n# Set permissions for Pterodactyl\r\nchown -R 1000:1000 \/home\/container",
             "container": "node:20-bullseye-slim",
             "entrypoint": "bash"
         }
@@ -33,8 +33,8 @@
             "description": "",
             "env_variable": "DEFAULT_USERNAME",
             "default_value": "cspanel",
-            "user_viewable": false,
-            "user_editable": false,
+            "user_viewable": true,
+            "user_editable": true,
             "rules": "required|string|max:20",
             "field_type": "text"
         },
@@ -43,9 +43,19 @@
             "description": "",
             "env_variable": "DEFAULT_PASSWORD",
             "default_value": "v67ic55x4ghvjfj",
-            "user_viewable": false,
-            "user_editable": false,
+            "user_viewable": true,
+            "user_editable": true,
             "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Allow default credentials",
+            "description": "Set to true to permit the built-in default credentials.",
+            "env_variable": "ALLOW_DEFAULT_CREDENTIALS",
+            "default_value": "true",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
             "field_type": "text"
         },
         {

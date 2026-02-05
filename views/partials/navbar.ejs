@@ -16,6 +16,7 @@
         </div>
         <div class="ml-auto">
             <form action="/auth/logout" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button type="submit" class="btn logout-btn text-white">Logout</button>
             </form>
         </div>

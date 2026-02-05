@@ -1,5 +1,6 @@
 // public/js/console.js
 $(document).ready(function () {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   const currentPath = window.location.pathname;
 
   //
@@ -15,6 +16,10 @@ $(document).ready(function () {
       .done(data => {
         try {
           const $list = $('#serverList').empty();
+          if (!data.servers || data.servers.length === 0) {
+            $list.append('<div class="alert alert-secondary">No servers configured yet.</div>');
+            return;
+          }
           data.servers.forEach(server => {
             const card = `
               <div class="card server-card mb-3">
@@ -30,14 +35,16 @@ $(document).ready(function () {
                       type="password"
                       class="form-control d-inline-block rcon-password-${server.id}"
                       value="${server.rconPassword}"
+                      aria-label="RCON password"
                       disabled
                       style="width:auto;"
                     />
                     <button
                       class="btn btn-sm btn-secondary toggle-password"
                       data-server-id="${server.id}"
+                      aria-label="Toggle RCON password visibility"
                     >
-                      <i class="fa fa-eye" id="toggleEyeIcon-${server.id}"></i>
+                      <i class="fa fa-eye" id="toggleEyeIcon-${server.id}" aria-hidden="true"></i>
                     </button>
                   </div>
                   <p class="status mb-1">
@@ -382,9 +389,13 @@ $('#autokick_off').click(() =>
   //
   async function sendPostRequest(endpoint, data = {}) {
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
       const resp = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(data)
       });
       if (!resp.ok) {

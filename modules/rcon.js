@@ -7,6 +7,7 @@ class RconManager {
     this.rcons = {};
     this.details = {};
     this.servers = {};
+    this.commandTimeoutMs = Number.parseInt(process.env.RCON_COMMAND_TIMEOUT_MS || '2000', 10);
     this.init();
   }
 
@@ -54,7 +55,7 @@ class RconManager {
         // Timeout‐protect
         const resp = await Promise.race([
           conn.execute(command),
-          new Promise((res) => setTimeout(() => res({ error: 'timeout' }), 200)),
+          new Promise((res) => setTimeout(() => res({ error: 'timeout' }), this.commandTimeoutMs)),
         ]);
 
         if (resp && resp.error) {

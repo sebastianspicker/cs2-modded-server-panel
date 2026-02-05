@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<%= csrfToken %>">
   <title>Add a Server</title>
   <!-- Include Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -85,29 +86,57 @@
   <link rel="stylesheet" href="/css/navbar.css">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to main content</a>
   <%- include('partials/navbar') %>
-  <div class="container">
+  <main class="container" id="main">
+    <h1 class="visually-hidden">Add a Server</h1>
     <div class="row">
       <div class="col-md-6 offset-md-3 form-container">
         <div class="card">
           <div class="card-header">
-            <h3 class="card-title">Add a Server</h3>
+            <h2 class="card-title">Add a Server</h2>
           </div>
           <div class="card-body">
             <form>
               <div class="mb-3">
                 <label for="serverIP" class="form-label">Server IP:</label>
-                <input type="text" id="serverIP" class="form-control" required>
+                <input
+                  type="text"
+                  id="serverIP"
+                  name="server_ip"
+                  class="form-control"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  required
+                >
               </div>
 
               <div class="mb-3">
                 <label for="serverPort" class="form-label">Server Port:</label>
-                <input type="text" id="serverPort" class="form-control" required>
+                <input
+                  type="number"
+                  id="serverPort"
+                  name="server_port"
+                  class="form-control"
+                  inputmode="numeric"
+                  min="1"
+                  max="65535"
+                  step="1"
+                  autocomplete="off"
+                  required
+                >
               </div>
 
               <div class="mb-3">
                 <label for="rconPassword" class="form-label">RCON Password:</label>
-                <input type="password" id="rconPassword" class="form-control" required>
+                <input
+                  type="password"
+                  id="rconPassword"
+                  name="rcon_password"
+                  class="form-control"
+                  autocomplete="off"
+                  required
+                >
               </div>
 
               <div class="btn-container">
@@ -119,7 +148,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </main>
 
   <!-- Include Bootstrap JS and jQuery -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -127,6 +156,7 @@
 
   <script>
     $(document).ready(function () {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
       // Event listener for the submit button
       $('#submitButton').on('click', function (e) {
         e.preventDefault(); // Prevent the default form submission
@@ -154,6 +184,7 @@
           type: 'POST',
           data: JSON.stringify(serverData),
           contentType: 'application/json',
+          headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
           success: function (data) {
             // Display a success toast message
             alert('Server added successfully!')

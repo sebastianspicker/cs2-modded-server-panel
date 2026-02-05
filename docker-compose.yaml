@@ -7,6 +7,7 @@ services:
     environment:
       DEFAULT_USERNAME: cspanel
       DEFAULT_PASSWORD: v67ic55x4ghvjfj
+      ALLOW_DEFAULT_CREDENTIALS: 'true'
       PORT: 3000
     volumes:
       - ./data:/home/container/data

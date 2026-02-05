@@ -12,12 +12,15 @@ router.post('/auth/login', (req, res) => {
 
   if (user) {
     bcrypt.compare(password, user.password, (err, result) => {
+      if (err) {
+        console.error('[auth] bcrypt compare failed', err);
+        return res.status(500).json({ status: 500, message: 'Internal server error' });
+      }
       if (result) {
         req.session.user = user;
-        res.status(200).json({ status: 200, message: 'Login successful' });
-      } else {
-        res.status(200).json({ status: 401, message: 'Invalid credentials' });
+        return res.status(200).json({ status: 200, message: 'Login successful' });
       }
+      return res.status(401).json({ status: 401, message: 'Invalid credentials' });
     });
   } else {
     res.status(401).json({ status: 401, message: 'Invalid credentials' });

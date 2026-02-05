@@ -1,17 +1,89 @@
-const bodyParser = require('body-parser');
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
+const RedisStore = require('connect-redis').default;
+const { createClient: createRedisClient } = require('redis');
 
 const app = express();
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const nodeEnv = process.env.NODE_ENV || 'development';
+let sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret) {
+  if (nodeEnv === 'test') {
+    sessionSecret = 'test-session-secret';
+  } else {
+    sessionSecret = crypto.randomBytes(32).toString('hex');
+    console.warn(
+      '[security] SESSION_SECRET not set; generated a temporary secret for this process.'
+    );
+  }
+}
+
+const cookieSameSite = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase();
+const cookieSecure = process.env.SESSION_COOKIE_SECURE === 'true';
+
+let sessionStore;
+const redisUrl =
+  process.env.REDIS_URL ||
+  (process.env.REDIS_HOST
+    ? `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}`
+    : null);
+
+if (redisUrl) {
+  const redisClient = createRedisClient({ url: redisUrl });
+  redisClient.on('error', (err) => {
+    console.error('[redis] client error', err);
+  });
+  redisClient.connect().catch((err) => {
+    console.error('[redis] connect failed', err);
+  });
+  sessionStore = new RedisStore({ client: redisClient });
+  console.log('[session] Using Redis session store.');
+} else {
+  console.warn('[session] Using in-memory session store. Set REDIS_URL for production use.');
+}
 app.use(
   session({
-    secret: 'cs2rconpanel',
+    secret: sessionSecret,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
+    store: sessionStore,
+    cookie: {
+      httpOnly: true,
+      sameSite: cookieSameSite,
+      secure: cookieSecure,
+    },
   })
 );
+
+app.use((req, res, next) => {
+  if (!req.session) return next();
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+  }
+  res.locals.csrfToken = req.session.csrfToken;
+  next();
+});
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+  if (!req.session?.user) {
+    return next();
+  }
+  const token = req.get('x-csrf-token') || req.body?._csrf;
+  if (!token || token !== req.session.csrfToken) {
+    const acceptHeader = req.headers['accept'] || '';
+    if (acceptHeader.includes('text/html')) {
+      return res.status(403).send('Invalid CSRF token');
+    }
+    return res.status(403).json({ status: 403, message: 'Invalid CSRF token' });
+  }
+  return next();
+});
 
 // Router direkt importieren (jede Datei endet mit: module.exports = router)
 const gameRoutes = require('./routes/game');

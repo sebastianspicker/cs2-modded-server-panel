@@ -1,40 +1,57 @@
 # CS2 Modded Server Panel
 
-A modern Node.js/Express web panel to control and monitor your modded Counter-Strike 2 servers via RCON.
+A Node.js/Express web panel to control and monitor modded Counter-Strike 2 servers via RCON.
 
-> **This repository is a fork of [shobhit-pathak/cs2-rcon-panel](https://github.com/shobhit-pathak/cs2-rcon-panel) with a strong focus on easy containerized deployment, especially as a [Pterodactyl](https://pterodactyl.io/) Egg.**
+> This repository is a fork of [shobhit-pathak/cs2-rcon-panel](https://github.com/shobhit-pathak/cs2-rcon-panel) with a focus on containerized deployment and Pterodactyl support.
+
+## Overview
+
+Use this panel to manage CS2 servers, run RCON commands, configure match setup, and track live state. It is designed to run in Docker and as a Pterodactyl Egg, with a local dev flow for contributors.
 
 ## Features
 
 - Web interface for managing modded Counter-Strike 2 servers
-- RCON connection & live console output
-- User authentication (environment-based, bcrypt-secured)
-- Server database & management UI
-- Easy deployment with Docker and Pterodactyl Panel
-- Full mod/plugin support (maps, configs, plugins.json, etc.)
-- Ready-to-use for production
+- RCON connection and live console output
+- Session-based authentication (bcrypt)
+- SQLite-backed server management UI
+- Deployment via Docker and Pterodactyl
+- Map/mode/config support via `cfg/maps.json`
 
-## Use with Pterodactyl
+## Requirements
 
-This repository is designed for **out-of-the-box use as a Pterodactyl Egg**.  
-Simply use the provided [Egg configuration](./cs2-modded-server-panel_egg.json), point the Docker image to `sebastianspicker/cs2-modded-server-panel:latest`, and map the environment variables as needed.
+- Node.js `>=20 <23`
+- npm
+- Optional: Docker (for container builds and CI validation)
+- Optional: Redis (recommended for production session storage)
 
-You can also run it with Docker manually:
+## Quickstart
+
+### Pterodactyl
+
+Use the bundled Egg configuration at `cs2-modded-server-panel_egg.json` and set the image to `sebastianspicker/cs2-modded-server-panel:latest`. Configure environment variables in the panel as needed.
+
+> Note: The Egg install script is pinned to a specific commit for reproducibility. Update the pin when releasing new versions.
+
+### Docker
 
 ```bash
 git clone https://github.com/sebastianspicker/cs2-modded-server-panel.git
 cd cs2-modded-server-panel
+
 docker build -t cs2-modded-server-panel .
+
 docker run -d -p 3000:3000 \
   -e DEFAULT_USERNAME=youradmin \
   -e DEFAULT_PASSWORD=yourpassword \
+  -e ALLOW_DEFAULT_CREDENTIALS=false \
+  -e SESSION_SECRET=your-session-secret \
   -e PORT=3000 \
   cs2-modded-server-panel
 ```
 
 Panel will be available at `http://localhost:3000`.
 
-### Local setup (non-Pterodactyl)
+### Local Development
 
 ```bash
 cat .nvmrc
@@ -43,31 +60,80 @@ cp .env.example .env
 npm run dev
 ```
 
-### Validation (CI-friendly)
+## Configuration
+
+### Environment Variables
+
+| Variable                    | Description                                     | Default                           |
+| --------------------------- | ----------------------------------------------- | --------------------------------- |
+| `DEFAULT_USERNAME`          | Default admin login username                    | `cspanel`                         |
+| `DEFAULT_PASSWORD`          | Default admin login password                    | `v67ic55x4ghvjfj`                 |
+| `ALLOW_DEFAULT_CREDENTIALS` | Allow built-in default credentials              | `false`                           |
+| `SESSION_SECRET`            | Session signing secret (required in production) | _unset_                           |
+| `SESSION_COOKIE_SECURE`     | Set to `true` behind HTTPS                      | `false`                           |
+| `SESSION_COOKIE_SAMESITE`   | Session cookie SameSite value                   | `lax`                             |
+| `REDIS_URL`                 | Redis connection URL (optional session store)   | _unset_                           |
+| `REDIS_HOST` / `REDIS_PORT` | Alternative to `REDIS_URL`                      | _unset_ / `6379`                  |
+| `PORT`                      | Port the panel runs on                          | `3000`                            |
+| `DB_PATH`                   | SQLite DB file path                             | `/home/container/data/cspanel.db` |
+| `RCON_COMMAND_TIMEOUT_MS`   | RCON command timeout (milliseconds)             | `2000`                            |
+
+> If you use the built-in defaults (`cspanel` / `v67ic55x4ghvjfj`), you must set `ALLOW_DEFAULT_CREDENTIALS=true` or the server will refuse to start.
+
+## Development
 
 ```bash
-# Shell lint + format check, and JSON/YAML validation
+npm run dev
+```
+
+### Lint
+
+```bash
+npm run lint
+```
+
+### Format
+
+```bash
+npm run format
+```
+
+### Tests
+
+```bash
+npm test
+```
+
+### Validation
+
+```bash
+# Shell lint + format check, JSON/YAML validation
 npm run validate
 
-# Additionally enforce Docker build + compose config (requires Docker daemon)
+# Enforce Docker build + compose config (requires Docker daemon)
 npm run validate -- --require-docker
+```
 
-# JS format/lint/tests + full ops validation (used in GitHub Actions)
+### Full CI Loop
+
+```bash
 npm run ci
 ```
 
-## Environment Variables
+## Security
 
-| Variable           | Description                  | Default                           |
-| ------------------ | ---------------------------- | --------------------------------- |
-| `DEFAULT_USERNAME` | Default admin login username | `cspanel`                         |
-| `DEFAULT_PASSWORD` | Default admin login password | `v67ic55x4ghvjfj`                 |
-| `PORT`             | Port the panel runs on       | `3000`                            |
-| `DB_PATH`          | SQLite DB file path          | `/home/container/data/cspanel.db` |
+- CSRF protection is enforced for authenticated POST requests.
+- Set `SESSION_SECRET` in production and enable `SESSION_COOKIE_SECURE=true` behind HTTPS.
+- Use Redis sessions for production by setting `REDIS_URL`.
+- Default credentials are blocked unless `ALLOW_DEFAULT_CREDENTIALS=true`.
 
-## Notes
+## Troubleshooting
 
-- `scripts/pterodactyl-install.sh` mirrors the Egg’s embedded install script (for review + shellcheck).
+- **`npm ci` fails**: Ensure Node.js 20–22 is active (`cat .nvmrc`).
+- **`npm run validate` fails**: Install `shellcheck`, `shfmt`, `jq`, and `ruby`.
+- **Docker validation skipped**: Docker daemon not available; run without `--require-docker`.
+- **Auth fails on fresh install**: Set `DEFAULT_USERNAME`, `DEFAULT_PASSWORD`, and `ALLOW_DEFAULT_CREDENTIALS` appropriately.
+- **Session store warning**: Configure Redis with `REDIS_URL` for production stability.
 
 ## Project Structure
 
@@ -82,3 +148,7 @@ npm run ci
 ├── Dockerfile
 └── cs2-modded-server-panel_egg.json
 ```
+
+## Notes
+
+- `scripts/pterodactyl-install.sh` mirrors the Egg’s embedded install script for review and shellcheck.

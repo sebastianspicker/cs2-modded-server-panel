@@ -61,17 +61,43 @@ better_sqlite_client.exec(`
 }
 
 // === 3) Default-User anlegen, falls noch nicht vorhanden ===
-const default_username = process.env.DEFAULT_USERNAME || 'cspanel';
-const default_password = process.env.DEFAULT_PASSWORD || 'v67ic55x4ghvjfj';
-const hashed_password = bcrypt.hashSync(default_password, 10);
+const default_username = 'cspanel';
+const default_password = 'v67ic55x4ghvjfj';
+const allow_default_credentials = process.env.ALLOW_DEFAULT_CREDENTIALS === 'true';
+const env_username = process.env.DEFAULT_USERNAME;
+const env_password = process.env.DEFAULT_PASSWORD;
+const has_env_credentials = Boolean(env_username && env_password);
 
-const existing_user = better_sqlite_client
-  .prepare(`SELECT 1 FROM users WHERE username = ?`)
-  .get(default_username);
+const user_count = better_sqlite_client.prepare(`SELECT COUNT(1) AS count FROM users`).get().count;
 
-if (existing_user) {
-  console.log('Default user already exists');
+if (user_count > 0) {
+  console.log('Users already exist; skipping default user creation.');
 } else {
+  let username = env_username;
+  let password = env_password;
+
+  if (!has_env_credentials) {
+    if (!allow_default_credentials) {
+      console.error(
+        '[db] DEFAULT_USERNAME/DEFAULT_PASSWORD are required unless ALLOW_DEFAULT_CREDENTIALS=true.'
+      );
+      throw new Error(
+        'Default credentials are not allowed without ALLOW_DEFAULT_CREDENTIALS=true.'
+      );
+    }
+    username = default_username;
+    password = default_password;
+    console.warn('[db] Using built-in default credentials because ALLOW_DEFAULT_CREDENTIALS=true.');
+  } else if (
+    !allow_default_credentials &&
+    username === default_username &&
+    password === default_password
+  ) {
+    console.error('[db] Default credentials are blocked unless ALLOW_DEFAULT_CREDENTIALS=true.');
+    throw new Error('Default credentials are not allowed without ALLOW_DEFAULT_CREDENTIALS=true.');
+  }
+
+  const hashed_password = bcrypt.hashSync(password, 10);
   better_sqlite_client
     .prepare(
       `
@@ -79,7 +105,7 @@ if (existing_user) {
       VALUES (?, ?)
     `
     )
-    .run(default_username, hashed_password);
+    .run(username, hashed_password);
   console.log('Default user created successfully.');
 }
 

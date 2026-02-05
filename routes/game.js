@@ -168,18 +168,6 @@ router.post('/api/autokick-toggle', is_authenticated, async (req, res) => {
 });
 
 //
-// === EXISTING COMMANDS & BACKUPS & RCON ===
-//
-router.post('/api/restart', is_authenticated, async (req, res) => {
-  try {
-    await runGameCmd(req.body.server_id, 'mp_restartgame 1');
-    return res.status(200).json({ message: 'Game restarted' });
-  } catch (err) {
-    console.error('[/api/restart] Error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-//
 // === SIMPLE COMMANDS ===
 //
 router.post('/api/restart', is_authenticated, async (req, res) => {
