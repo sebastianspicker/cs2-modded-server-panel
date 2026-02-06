@@ -43,7 +43,7 @@ act -W .github/workflows/ci.yml
 ## Secrets And Repo Settings
 - No secrets are required for current CI.
 - If you add secrets later, ensure they are only used on trusted events (`push` to `master` or `workflow_dispatch`) and never on fork PRs.
- - Gitleaks uses `.gitleaks.toml` to allowlist the sample default password used for local dev/test.
+- Gitleaks uses `.gitleaks.toml` to allowlist the sample default password used for local dev/test.
 
 ## Adding Or Extending Jobs
 When adding new workflows or jobs:
