@@ -44,6 +44,7 @@ reports/
 
 .DS_Store
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo

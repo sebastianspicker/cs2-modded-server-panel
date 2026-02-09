@@ -25,6 +25,7 @@ const cookieSameSite = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCas
 const cookieSecure = process.env.SESSION_COOKIE_SECURE === 'true';
 
 let sessionStore;
+let redisClient = null;
 const redisUrl =
   process.env.REDIS_URL ||
   (process.env.REDIS_HOST
@@ -32,12 +33,9 @@ const redisUrl =
     : null);
 
 if (redisUrl) {
-  const redisClient = createRedisClient({ url: redisUrl });
+  redisClient = createRedisClient({ url: redisUrl });
   redisClient.on('error', (err) => {
     console.error('[redis] client error', err);
-  });
-  redisClient.connect().catch((err) => {
-    console.error('[redis] connect failed', err);
   });
   sessionStore = new RedisStore({ client: redisClient });
   console.log('[session] Using Redis session store.');
@@ -117,10 +115,22 @@ app.get('/', (req, res) => {
 });
 
 if (require.main === module) {
-  const server = app.listen(port, () => {
-    // Pterodactyl egg expects: "Server is running on ${PORT}."
-    const actualPort = server.address() && server.address().port ? server.address().port : port;
-    console.log(`Server is running on ${actualPort}.`);
+  (async function start() {
+    if (redisClient) {
+      try {
+        await redisClient.connect();
+      } catch (err) {
+        console.error('[redis] connect failed', err);
+        process.exit(1);
+      }
+    }
+    const server = app.listen(port, () => {
+      const actualPort = server.address() && server.address().port ? server.address().port : port;
+      console.log(`Server is running on ${actualPort}.`);
+    });
+  })().catch((err) => {
+    console.error(err);
+    process.exit(1);
   });
 }
 

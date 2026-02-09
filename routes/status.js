@@ -12,8 +12,17 @@ const is_authenticated = require('../modules/middleware');
  *  - last_game_type, last_game_mode from the panel state (DB)
  *  - current human and bot counts parsed from RCON 'status' output
  */
+function parseServerId(val) {
+  if (val == null || val === '') return null;
+  const id = typeof val === 'number' ? val : parseInt(String(val).trim(), 10);
+  return Number.isInteger(id) && id > 0 ? String(id) : null;
+}
+
 router.get('/api/status/:server_id', is_authenticated, async (req, res) => {
-  const serverId = req.params.server_id;
+  const serverId = parseServerId(req.params.server_id);
+  if (!serverId) {
+    return res.status(404).json({ error: 'Server not found' });
+  }
 
   try {
     // 1) Fetch last‐saved panel state from DB
@@ -32,7 +41,7 @@ router.get('/api/status/:server_id', is_authenticated, async (req, res) => {
     let botCount = null;
     try {
       const resp = await rcon.execute_command(serverId, 'status');
-      const text = resp.toString();
+      const text = typeof resp === 'string' ? resp : '';
 
       // 3) Parse the "players  : X humans, Y bots" line (case-insensitive)
       // e.g. "players  : 0 humans, 2 bots (0 max) ..."

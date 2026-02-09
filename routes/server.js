@@ -8,6 +8,12 @@ const pluginConfig = require('../cfg/plugins.json');
 const rcon = require('../modules/rcon');
 const is_authenticated = require('../modules/middleware');
 
+function parseServerId(val) {
+  if (val == null || val === '') return null;
+  const id = typeof val === 'number' ? val : parseInt(String(val).trim(), 10);
+  return Number.isInteger(id) && id > 0 ? String(id) : null;
+}
+
 // Render “Add Server” form
 router.get('/add-server', is_authenticated, (req, res) => {
   res.render('add-server');
@@ -21,7 +27,11 @@ router.get('/servers', is_authenticated, (req, res) => {
 // Render the “Manage Server” page, injecting RCON info + map/game config + plugin lists + last_* state
 router.get('/manage/:server_id', is_authenticated, async (req, res) => {
   try {
-    const server_id = req.params.server_id;
+    const server_id = parseServerId(req.params.server_id);
+    if (!server_id) {
+      return res.status(404).send('Server not found');
+    }
+    await rcon.readyPromise;
     const stmt = better_sqlite_client.prepare(`
       SELECT 
         id,
@@ -44,8 +54,8 @@ router.get('/manage/:server_id', is_authenticated, async (req, res) => {
     let hostname = '–';
     try {
       const resp = await rcon.execute_command(server_id, 'hostname');
-      const txt = resp.toString();
-      hostname = txt.includes('=') ? txt.split('=')[1].trim() : txt;
+      const txt = typeof resp === 'string' ? resp : '';
+      hostname = txt.includes('=') ? txt.split('=')[1].trim() : txt || '–';
     } catch {
       // Silent failure, wir zeigen trotzdem das Manage-Template
     }
@@ -103,15 +113,28 @@ router.get('/manage/:server_id', is_authenticated, async (req, res) => {
 router.post('/api/add-server', is_authenticated, async (req, res) => {
   const { server_ip, server_port, rcon_password } = req.body;
 
+  const ip = typeof server_ip === 'string' ? server_ip.trim() : '';
+  const portNum = typeof server_port === 'number' ? server_port : parseInt(String(server_port || ''), 10);
+  const password = typeof rcon_password === 'string' ? rcon_password : '';
+
+  if (!ip || ip.length > 255) {
+    return res.status(400).json({ error: 'server_ip is required and must be at most 255 characters' });
+  }
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    return res.status(400).json({ error: 'server_port must be an integer between 1 and 65535' });
+  }
+  if (!password || password.length > 512) {
+    return res.status(400).json({ error: 'rcon_password is required and must be at most 512 characters' });
+  }
+
   try {
     const insert = better_sqlite_client.prepare(`
       INSERT INTO servers (serverIP, serverPort, rconPassword)
       VALUES (?, ?, ?)
     `);
-    const result = insert.run(server_ip, server_port, rcon_password);
+    const result = insert.run(ip, portNum, password);
 
     if (result.changes > 0) {
-      // Re-init all RCON connections
       await rcon.init();
       return res.status(201).json({ message: 'Server added successfully' });
     } else {
@@ -126,6 +149,7 @@ router.post('/api/add-server', is_authenticated, async (req, res) => {
 // API: List all servers with connection & hostname status
 router.get('/api/servers', is_authenticated, async (req, res) => {
   try {
+    await rcon.readyPromise;
     const stmt = better_sqlite_client.prepare(`SELECT * FROM servers`);
     const servers = stmt.all();
 
@@ -138,8 +162,8 @@ router.get('/api/servers', is_authenticated, async (req, res) => {
       if (sid in rcon.rcons) {
         try {
           const resp = await rcon.execute_command(sid, 'hostname');
-          const txt = resp.toString();
-          s.hostname = txt.includes('=') ? txt.split('=')[1].trim() : txt;
+          const txt = typeof resp === 'string' ? resp : '';
+          s.hostname = txt.includes('=') ? txt.split('=')[1].trim() : txt || '-';
           s.connected = true;
           s.authenticated = true;
         } catch (e) {
@@ -158,7 +182,10 @@ router.get('/api/servers', is_authenticated, async (req, res) => {
 // API: Reconnect to a server’s RCON session
 router.post('/api/reconnect-server', is_authenticated, async (req, res) => {
   try {
-    const server_id = req.body.server_id;
+    const server_id = parseServerId(req.body?.server_id);
+    if (!server_id) {
+      return res.status(400).json({ error: 'Missing or invalid server_id' });
+    }
     const stmt = better_sqlite_client.prepare(`SELECT * FROM servers WHERE id = ?`);
     const server = stmt.get(server_id);
 
@@ -177,11 +204,16 @@ router.post('/api/reconnect-server', is_authenticated, async (req, res) => {
 // API: Delete a server from the database
 router.post('/api/delete-server', is_authenticated, async (req, res) => {
   try {
-    const server_id = req.body.server_id;
+    const server_id = parseServerId(req.body?.server_id);
+    if (!server_id) {
+      return res.status(400).json({ error: 'Missing or invalid server_id' });
+    }
     const del = better_sqlite_client.prepare(`DELETE FROM servers WHERE id = ?`);
     const result = del.run(server_id);
 
     if (result.changes > 0) {
+      await rcon.disconnect_rcon(server_id);
+      delete rcon.servers[server_id];
       return res.status(200).json({ message: 'Server deleted successfully' });
     } else {
       return res.status(404).json({ error: 'Server not found' });
@@ -225,19 +257,25 @@ router.get('/api/game-types/:type/game-modes/:mode/maps', is_authenticated, (req
   res.json({ maps });
 });
 
-// API: apply plugin‐override via RCON
+// API: apply plugin‐override via RCON (only allowed plugin names from config)
 router.post('/api/plugins/apply', is_authenticated, async (req, res) => {
-  const { server_id, enable = [], disable = [] } = req.body;
+  const server_id = parseServerId(req.body?.server_id);
+  if (!server_id) {
+    return res.status(400).json({ error: 'Missing or invalid server_id' });
+  }
+  const validNames = new Set(pluginConfig.plugins.map((p) => p.name));
+  const enable = Array.isArray(req.body?.enable) ? req.body.enable : [];
+  const disable = Array.isArray(req.body?.disable) ? req.body.disable : [];
+  const enableFiltered = enable.filter((name) => validNames.has(name));
+  const disableFiltered = disable.filter((name) => validNames.has(name));
 
   try {
-    // zuerst alle abgewählten Plugins entladen
-    for (const plugin of disable) {
+    for (const plugin of disableFiltered) {
       const p = pluginConfig.plugins.find((x) => x.name === plugin);
       const path = p && p.defaultEnabled ? p.name : `disabled/${plugin}`;
       await rcon.execPluginCmd(server_id, 'unload', path);
     }
-    // dann alle ausgewählten Plugins laden
-    for (const plugin of enable) {
+    for (const plugin of enableFiltered) {
       const p = pluginConfig.plugins.find((x) => x.name === plugin);
       const path = p && p.defaultEnabled ? p.name : `disabled/${plugin}`;
       await rcon.execPluginCmd(server_id, 'reload', path);

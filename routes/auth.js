@@ -31,10 +31,15 @@ router.post('/auth/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error(err);
-      res.status(500).json({ status: 500, message: 'Logout failed' });
-    } else {
-      res.redirect('/');
+      return res.status(500).json({ status: 500, message: 'Logout failed' });
     }
+    const wantsJson =
+      (req.headers.accept || '').includes('application/json') ||
+      (req.xhr === true);
+    if (wantsJson) {
+      return res.status(200).json({ status: 200, message: 'Logged out' });
+    }
+    res.redirect('/');
   });
 });
 

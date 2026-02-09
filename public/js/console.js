@@ -3,6 +3,17 @@ $(document).ready(function () {
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
   const currentPath = window.location.pathname;
 
+  function escapeHtml(str) {
+    if (str == null) return '';
+    const s = String(str);
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   //
   // === OVERVIEW PAGE: /servers ===
   //
@@ -21,11 +32,16 @@ $(document).ready(function () {
             return;
           }
           data.servers.forEach(server => {
+            const hostname = escapeHtml(server.hostname);
+            const serverIP = escapeHtml(server.serverIP);
+            const serverPort = escapeHtml(server.serverPort);
+            const rconPassword = escapeHtml(server.rconPassword);
+            const serverId = escapeHtml(server.id);
             const card = `
               <div class="card server-card mb-3">
                 <div class="card-header">
                   <h3 class="card-title">
-                    ${server.hostname} (${server.serverIP}:${server.serverPort})
+                    ${hostname} (${serverIP}:${serverPort})
                   </h3>
                 </div>
                 <div class="card-body">
@@ -33,18 +49,18 @@ $(document).ready(function () {
                     RCON Password:
                     <input
                       type="password"
-                      class="form-control d-inline-block rcon-password-${server.id}"
-                      value="${server.rconPassword}"
+                      class="form-control d-inline-block rcon-password-${serverId}"
+                      value="${rconPassword}"
                       aria-label="RCON password"
                       disabled
                       style="width:auto;"
                     />
                     <button
                       class="btn btn-sm btn-secondary toggle-password"
-                      data-server-id="${server.id}"
+                      data-server-id="${serverId}"
                       aria-label="Toggle RCON password visibility"
                     >
-                      <i class="fa fa-eye" id="toggleEyeIcon-${server.id}" aria-hidden="true"></i>
+                      <i class="fa fa-eye" id="toggleEyeIcon-${serverId}" aria-hidden="true"></i>
                     </button>
                   </div>
                   <p class="status mb-1">
@@ -58,14 +74,14 @@ $(document).ready(function () {
                   ${(!server.connected || !server.authenticated)
                     ? `<button
                          class="btn btn-sm btn-success reconnect-server"
-                         data-server-id="${server.id}"
+                         data-server-id="${serverId}"
                        >Reconnect</button>`
                     : ''
                   }
-                  <a href="/manage/${server.id}" class="btn btn-sm btn-primary">Manage</a>
+                  <a href="/manage/${serverId}" class="btn btn-sm btn-primary">Manage</a>
                   <button
                     class="btn btn-sm btn-danger delete-server"
-                    data-server-id="${server.id}"
+                    data-server-id="${serverId}"
                   >Delete</button>
                 </div>
               </div>

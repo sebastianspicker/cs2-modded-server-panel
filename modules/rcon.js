@@ -8,15 +8,15 @@ class RconManager {
     this.details = {};
     this.servers = {};
     this.commandTimeoutMs = Number.parseInt(process.env.RCON_COMMAND_TIMEOUT_MS || '2000', 10);
-    this.init();
+    this.readyPromise = this.init();
   }
 
   /** Initialisiert Verbindungen zu allen in der DB stehenden Servern */
   async init() {
     try {
-      const stmt = better_sqlite_client.prepare('SELECT * FROM servers');
+      const stmt = better_sqlite_client.prepare('SELECT id, serverIP, serverPort, rconPassword FROM servers');
       const servers = stmt.all();
-      console.log('All servers in DB:', servers);
+      console.log('[rcon] Initializing connections for', servers.length, 'server(s)');
       for (const server of servers) {
         const sid = server.id.toString();
         if (this.rcons[sid]) continue;
@@ -40,18 +40,22 @@ class RconManager {
    */
   async execute_command(server_id, command) {
     try {
-      let conn = this.rcons[server_id];
       const srv = this.servers[server_id];
+      if (!srv) {
+        console.error('[rcon] Unknown server_id:', server_id);
+        return 400;
+      }
+      let conn = this.rcons[server_id];
 
       // bei Verbindungsproblemen reconnecten
-      if (!conn || !conn.isConnected() || !conn.isAuthenticated() || !conn.connection.writable) {
+      if (!conn || !conn.isConnected() || !conn.isAuthenticated() || !conn.connection?.writable) {
         console.log(`[rcon] Connection issue, reconnecting ${server_id}`);
         await this.disconnect_rcon(server_id);
         await this.connect(server_id, srv);
         conn = this.rcons[server_id];
       }
 
-      if (conn.isConnected() && conn.isAuthenticated() && conn.connection.writable) {
+      if (conn.isConnected() && conn.isAuthenticated() && conn.connection?.writable) {
         // Timeout‐protect
         const resp = await Promise.race([
           conn.execute(command),
@@ -86,7 +90,7 @@ class RconManager {
 
   /** sendet periodisch einen status‐Heartbeat */
   async send_heartbeat(server_id, server) {
-    if (!this.rcons[server_id]?.connection.writable) {
+    if (!this.rcons[server_id]?.connection?.writable) {
       console.log(`[heartbeat] Connection unwritable, reconnecting ${server_id}`);
       await this.disconnect_rcon(server_id);
       await this.connect(server_id, server);
@@ -106,27 +110,41 @@ class RconManager {
 
   /** baut die RCON‐Verbindung auf */
   async connect(server_id, server) {
+    if (!server) {
+      console.error('[rcon] connect called without server object');
+      return;
+    }
+    let authCompleted = false;
+    let conn;
     try {
-      const conn = new Rcon({
+      conn = new Rcon({
         host: server.serverIP,
         port: server.serverPort,
         timeout: 5000,
       });
       console.log('CONNECTING RCON', server_id, server.serverIP, server.serverPort);
 
-      // Auth‐Timeout
-      const authTimeout = setTimeout(async () => {
+      const authTimeout = setTimeout(() => {
+        if (authCompleted) return;
+        authCompleted = true;
         console.error('[rcon] Authentication timed out', server_id);
-        await this.disconnect_rcon(server_id);
+        try {
+          if (conn && conn.connection) conn.connection.end();
+        } catch {
+          // ignore
+        }
       }, 10000);
 
       try {
         await conn.authenticate(server.rconPassword);
+        authCompleted = true;
         clearTimeout(authTimeout);
         console.log('RCON Authenticated', server_id);
       } catch (err) {
+        authCompleted = true;
         clearTimeout(authTimeout);
-        console.error('[rcon] Authentication failed', server_id, err);
+        console.error('[rcon] Authentication failed', server_id, err.message);
+        return;
       }
 
       this.rcons[server_id] = conn;
@@ -153,15 +171,26 @@ class RconManager {
   async disconnect_rcon(server_id) {
     console.log('DISCONNECTING RCON', server_id);
     const conn = this.rcons[server_id];
-    if (!conn || !conn.connected) return;
+    const isConnected =
+      conn && (typeof conn.isConnected === 'function' ? conn.isConnected() : conn.connected);
+    if (!conn || !isConnected) {
+      delete this.rcons[server_id];
+      delete this.details[server_id];
+      return;
+    }
 
     clearInterval(this.details[server_id]?.heartbeat_interval);
-    conn.authenticated = false;
-    conn.connected = false;
+    delete this.details[server_id];
 
     return new Promise((resolve) => {
-      conn.connection.once('close', () => resolve());
-      conn.connection.once('error', () => resolve());
+      conn.connection.once('close', () => {
+        delete this.rcons[server_id];
+        resolve();
+      });
+      conn.connection.once('error', () => {
+        delete this.rcons[server_id];
+        resolve();
+      });
       conn.connection.end();
     });
   }
