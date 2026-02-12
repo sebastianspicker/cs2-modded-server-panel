@@ -138,17 +138,35 @@ npm run ci
 ## Project Structure
 
 ```
-├── app.js
-├── db.js
-├── modules/
-├── routes/
-├── public/
-├── views/
-├── cfg/
+├── app.js                 # Express app entry
+├── db.js                  # SQLite init and default user
+├── modules/               # RCON manager, auth middleware
+├── routes/                # auth, server, game, status
+├── public/                # Static CSS/JS
+├── views/                 # EJS templates
+├── cfg/                   # maps.json, plugins.json, game configs
+├── scripts/               # format, validate, ci-local, pterodactyl-install
+├── test/                  # Unit and entrypoint tests
+├── docs/                  # CI overview, runbook, repo map, audit
 ├── Dockerfile
+├── docker-compose.yaml
 └── cs2-modded-server-panel_egg.json
 ```
 
+## Validation Commands
+
+| Action   | Command |
+| -------- | ------- |
+| Install  | `npm ci` |
+| Build    | `docker build -t cs2-modded-server-panel .` (optional) |
+| Run      | `npm run dev` or `npm start` |
+| Test     | `npm test` |
+| Lint     | `npm run lint` |
+| Format   | `npm run format` then `npm run format:check` |
+| Validate | `npm run validate` (shell/config); add `-- --require-docker` for Docker checks |
+| Full CI  | `npm run ci` |
+
 ## Notes
 
+- Audit reports and findings live under `docs/audit/`.
 - `scripts/pterodactyl-install.sh` mirrors the Egg’s embedded install script for review and shellcheck.

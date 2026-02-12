@@ -55,6 +55,10 @@ class RconManager {
         conn = this.rcons[server_id];
       }
 
+      if (!conn || !conn.isConnected() || !conn.isAuthenticated() || !conn.connection?.writable) {
+        console.error(`[rcon] No valid connection after reconnect: ${server_id}`);
+        return 400;
+      }
       if (conn.isConnected() && conn.isAuthenticated() && conn.connection?.writable) {
         // Timeout‐protect
         const resp = await Promise.race([
@@ -95,9 +99,11 @@ class RconManager {
       await this.disconnect_rcon(server_id);
       await this.connect(server_id, server);
     }
+    const conn = this.rcons[server_id];
+    if (!conn || !conn.connection?.writable) return;
     try {
       await Promise.race([
-        this.rcons[server_id].execute('status'),
+        conn.execute('status'),
         new Promise((_, rej) => setTimeout(() => rej('timeout'), 5000)),
       ]);
       console.log('HEARTBEAT SUCCESS', server_id);

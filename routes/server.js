@@ -86,9 +86,11 @@ router.get('/manage/:server_id', is_authenticated, async (req, res) => {
       '';
     const lastMap = server.last_map || '';
 
-    // Render & Props übergeben
+    // Render & Props übergeben (safeServerId nur Ziffern für Script-Kontext)
+    const safeServerId = /^\d+$/.test(String(server_id)) ? server_id : '';
     res.render('manage', {
       server_id,
+      safeServerId,
       hostname,
       host,
       port,

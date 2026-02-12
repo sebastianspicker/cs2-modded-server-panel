@@ -36,6 +36,13 @@ Node.js/Express web panel for managing Counter-Strike 2 servers via RCON. Server
 - `test/app.test.js`: Basic unauthenticated login page check.
 - `test/entrypoint.test.js`: Ensures `node app.js` starts and logs a port.
 
+## Documentation
+
+- `docs/ci.md`: CI overview and local reproduction.
+- `docs/RUNBOOK.md`: Commands and prerequisites.
+- `docs/REPO_MAP.md`: This file; code layout and hotspots.
+- `docs/audit/`: Audit reports and findings (see `docs/audit/README.md`).
+
 ## Ops & Tooling
 
 - `scripts/format.sh`: Shell formatting (shfmt).

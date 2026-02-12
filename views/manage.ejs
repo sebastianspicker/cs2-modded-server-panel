@@ -274,9 +274,9 @@
 
   </main>
 
-  <!-- Übergabe an console.js -->
+  <!-- Übergabe an console.js (safeServerId nur Ziffern, XSS-sicher) -->
   <script>
-    window.server_id       = '<%= server_id %>';
+    window.server_id       = '<%= safeServerId %>';
     window.rootPlugins     = <%- JSON.stringify(rootPlugins) %>;
     window.disabledPlugins = <%- JSON.stringify(disabledPlugins) %>;
   </script>

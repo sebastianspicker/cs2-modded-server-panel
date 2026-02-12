@@ -7,6 +7,47 @@ const is_authenticated = require('../modules/middleware');
 const { better_sqlite_client } = require('../db');
 
 const MAX_TEAM_NAME_LEN = 64;
+const MAX_SAY_MESSAGE_LEN = 256;
+const MAX_RCON_COMMAND_LEN = 512;
+const RCON_BLOCKED_COMMANDS = ['quit', 'exit', 'shutdown', 'q'];
+
+/** Returns allowed map names for the given game_type and game_mode from maps.json. */
+function getMapsForMode(gameType, gameMode) {
+  const gt = mapsConfig.gameTypes?.[gameType];
+  const gm = gt?.gameModes?.[gameMode];
+  if (!gm || !Array.isArray(gm.mapGroups)) return [];
+  let maps = [];
+  for (const mg of gm.mapGroups) {
+    const grp = mapsConfig.mapGroups?.[mg];
+    if (grp && Array.isArray(grp.maps)) maps = maps.concat(grp.maps);
+  }
+  return maps;
+}
+
+/** Returns 0 or 1 for ConVar toggles, or null if invalid. */
+function parseConVarValue(val) {
+  if (val === 0 || val === '0') return 0;
+  if (val === 1 || val === '1') return 1;
+  return null;
+}
+
+/** Sanitize say message: strip quotes/newlines, limit length. */
+function sanitizeSayMessage(s) {
+  if (typeof s !== 'string') return '';
+  return s
+    .replace(/["\\\r\n]/g, '')
+    .trim()
+    .slice(0, MAX_SAY_MESSAGE_LEN);
+}
+
+/** Returns true if RCON command is allowed (length + not blocked). */
+function isRconCommandAllowed(cmd) {
+  if (typeof cmd !== 'string') return false;
+  const trimmed = cmd.trim();
+  if (trimmed.length === 0 || trimmed.length > MAX_RCON_COMMAND_LEN) return false;
+  const lower = trimmed.toLowerCase().split(/\s+/)[0];
+  return !RCON_BLOCKED_COMMANDS.includes(lower);
+}
 
 /** Returns valid server_id string or null if invalid. */
 function parseServerId(val) {
@@ -69,21 +110,8 @@ router.post('/api/setup-game', is_authenticated, async (req, res) => {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
     const { team1 = '', team2 = '', game_type, game_mode, selectedMap } = req.body;
-    const t1 = sanitizeTeamName(team1);
-    const t2 = sanitizeTeamName(team2);
 
-    // 1) Team‐Namen setzen (falls angegeben)
-    if (t1) {
-      await runGameCmd(server_id, `mp_teamname_1 "${t1}"`);
-    }
-    if (t2) {
-      await runGameCmd(server_id, `mp_teamname_2 "${t2}"`);
-    }
-
-    // 2) Map wechseln
-    await runGameCmd(server_id, `changelevel ${selectedMap}`);
-
-    // 3) aus maps.json das passende Exec‐File ermitteln
+    // 1) game_type und game_mode validieren, erlaubte Maps ermitteln
     const gt = mapsConfig.gameTypes?.[game_type];
     if (!gt) {
       return res.status(400).json({ error: `Unbekannter game_type: ${game_type}` });
@@ -92,9 +120,35 @@ router.post('/api/setup-game', is_authenticated, async (req, res) => {
     if (!gm) {
       return res.status(400).json({ error: `Unbekannter game_mode: ${game_mode}` });
     }
-    const execFile = gm.exec;
+    const allowedMaps = getMapsForMode(game_type, game_mode);
+    const mapName =
+      typeof selectedMap === 'string' && selectedMap.trim().length > 0
+        ? selectedMap.trim()
+        : '';
+    if (!mapName || (allowedMaps.length > 0 && !allowedMaps.includes(mapName))) {
+      return res.status(400).json({
+        error: allowedMaps.length
+          ? `selectedMap must be one of: ${allowedMaps.join(', ')}`
+          : 'selectedMap is required',
+      });
+    }
+
+    const t1 = sanitizeTeamName(team1);
+    const t2 = sanitizeTeamName(team2);
+
+    // 2) Team‐Namen setzen (falls angegeben)
+    if (t1) {
+      await runGameCmd(server_id, `mp_teamname_1 "${t1}"`);
+    }
+    if (t2) {
+      await runGameCmd(server_id, `mp_teamname_2 "${t2}"`);
+    }
+
+    // 3) Map wechseln
+    await runGameCmd(server_id, `changelevel ${mapName}`);
 
     // 4) CFG ausführen
+    const execFile = gm.exec;
     await execCfg(server_id, execFile);
 
     // 5) Panel‐State in der DB aktualisieren
@@ -105,7 +159,7 @@ router.post('/api/setup-game', is_authenticated, async (req, res) => {
              last_game_mode  = ?
        WHERE id = ?
     `);
-    stmt.run(selectedMap, game_type, game_mode, parseInt(server_id, 10));
+    stmt.run(mapName, game_type, game_mode, parseInt(server_id, 10));
 
     return res.status(200).json({ message: 'Game Created!' });
   } catch (err) {
@@ -171,7 +225,10 @@ router.post('/api/limitteams-toggle', is_authenticated, async (req, res) => {
   try {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
-    const { value } = req.body;
+    const value = parseConVarValue(req.body?.value);
+    if (value === null) {
+      return res.status(400).json({ error: 'value must be 0 or 1' });
+    }
     await runGameCmd(server_id, `mp_limitteams ${value}`);
     return res.status(200).json({ message: `mp_limitteams set to ${value}` });
   } catch (err) {
@@ -185,7 +242,10 @@ router.post('/api/autoteam-toggle', is_authenticated, async (req, res) => {
   try {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
-    const { value } = req.body;
+    const value = parseConVarValue(req.body?.value);
+    if (value === null) {
+      return res.status(400).json({ error: 'value must be 0 or 1' });
+    }
     await runGameCmd(server_id, `mp_autoteambalance ${value}`);
     return res.status(200).json({ message: `mp_autoteambalance set to ${value}` });
   } catch (err) {
@@ -199,7 +259,10 @@ router.post('/api/friendlyfire-toggle', is_authenticated, async (req, res) => {
   try {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
-    const { value } = req.body;
+    const value = parseConVarValue(req.body?.value);
+    if (value === null) {
+      return res.status(400).json({ error: 'value must be 0 or 1' });
+    }
     await runGameCmd(server_id, `mp_friendlyfire ${value}`);
     return res.status(200).json({ message: `mp_friendlyfire set to ${value}` });
   } catch (err) {
@@ -213,7 +276,10 @@ router.post('/api/autokick-toggle', is_authenticated, async (req, res) => {
   try {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
-    const { value } = req.body;
+    const value = parseConVarValue(req.body?.value);
+    if (value === null) {
+      return res.status(400).json({ error: 'value must be 0 or 1' });
+    }
     await runGameCmd(server_id, `mp_autokick ${value}`);
     return res.status(200).json({ message: `mp_autokick set to ${value}` });
   } catch (err) {
@@ -374,9 +440,14 @@ router.post('/api/rcon', is_authenticated, async (req, res) => {
   try {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
-    const { command } = req.body;
+    const command = req.body?.command;
+    if (!isRconCommandAllowed(command)) {
+      return res.status(400).json({
+        error: `Command not allowed (max ${MAX_RCON_COMMAND_LEN} chars, blocked: ${RCON_BLOCKED_COMMANDS.join(', ')})`,
+      });
+    }
     console.log(`[rcon] ${command}`);
-    const resp = await rcon.execute_command(server_id, command);
+    const resp = await rcon.execute_command(server_id, typeof command === 'string' ? command.trim() : '');
     const [ok, text] = rconResponse(resp);
     const msg = ok ? 'Command sent!' : `Response:\n${text}`;
     return res.status(200).json({ message: msg });
@@ -390,7 +461,11 @@ router.post('/api/say-admin', is_authenticated, async (req, res) => {
   try {
     const server_id = requireServerId(req, res);
     if (!server_id) return;
-    const text = req.body.message;
+    const raw = req.body?.message;
+    const text = sanitizeSayMessage(raw);
+    if (!text) {
+      return res.status(400).json({ error: 'message is required and must be non-empty after sanitization' });
+    }
     console.log(`[rcon] say ${text}`);
     await rcon.execute_command(server_id, `say ${text}`);
     return res.status(200).json({ message: 'Message sent!' });
