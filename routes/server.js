@@ -24,7 +24,7 @@ router.get('/servers', is_authenticated, (req, res) => {
   res.render('servers');
 });
 
-// Render the “Manage Server” page, injecting RCON info + map/game config + plugin lists + last_* state
+// Render the “Manage Server” page (RCON info, map/game config, plugin lists, last_* state)
 router.get('/manage/:server_id', is_authenticated, async (req, res) => {
   try {
     const server_id = parseServerId(req.params.server_id);
@@ -116,17 +116,22 @@ router.post('/api/add-server', is_authenticated, async (req, res) => {
   const { server_ip, server_port, rcon_password } = req.body;
 
   const ip = typeof server_ip === 'string' ? server_ip.trim() : '';
-  const portNum = typeof server_port === 'number' ? server_port : parseInt(String(server_port || ''), 10);
+  const portNum =
+    typeof server_port === 'number' ? server_port : parseInt(String(server_port || ''), 10);
   const password = typeof rcon_password === 'string' ? rcon_password : '';
 
   if (!ip || ip.length > 255) {
-    return res.status(400).json({ error: 'server_ip is required and must be at most 255 characters' });
+    return res.status(400).json({
+      error: 'server_ip is required and must be at most 255 characters',
+    });
   }
   if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
     return res.status(400).json({ error: 'server_port must be an integer between 1 and 65535' });
   }
   if (!password || password.length > 512) {
-    return res.status(400).json({ error: 'rcon_password is required and must be at most 512 characters' });
+    return res.status(400).json({
+      error: 'rcon_password is required and must be at most 512 characters',
+    });
   }
 
   try {

@@ -447,7 +447,10 @@ router.post('/api/rcon', is_authenticated, async (req, res) => {
       });
     }
     console.log(`[rcon] ${command}`);
-    const resp = await rcon.execute_command(server_id, typeof command === 'string' ? command.trim() : '');
+    const resp = await rcon.execute_command(
+      server_id,
+      typeof command === 'string' ? command.trim() : ''
+    );
     const [ok, text] = rconResponse(resp);
     const msg = ok ? 'Command sent!' : `Response:\n${text}`;
     return res.status(200).json({ message: msg });
@@ -464,7 +467,9 @@ router.post('/api/say-admin', is_authenticated, async (req, res) => {
     const raw = req.body?.message;
     const text = sanitizeSayMessage(raw);
     if (!text) {
-      return res.status(400).json({ error: 'message is required and must be non-empty after sanitization' });
+      return res.status(400).json({
+        error: 'message is required and must be non-empty after sanitization',
+      });
     }
     console.log(`[rcon] say ${text}`);
     await rcon.execute_command(server_id, `say ${text}`);

@@ -14,7 +14,9 @@ class RconManager {
   /** Initialisiert Verbindungen zu allen in der DB stehenden Servern */
   async init() {
     try {
-      const stmt = better_sqlite_client.prepare('SELECT id, serverIP, serverPort, rconPassword FROM servers');
+      const stmt = better_sqlite_client.prepare(
+        'SELECT id, serverIP, serverPort, rconPassword FROM servers'
+      );
       const servers = stmt.all();
       console.log('[rcon] Initializing connections for', servers.length, 'server(s)');
       for (const server of servers) {

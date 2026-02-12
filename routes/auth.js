@@ -34,8 +34,7 @@ router.post('/auth/logout', (req, res) => {
       return res.status(500).json({ status: 500, message: 'Logout failed' });
     }
     const wantsJson =
-      (req.headers.accept || '').includes('application/json') ||
-      (req.xhr === true);
+      (req.headers.accept || '').includes('application/json') || req.xhr === true;
     if (wantsJson) {
       return res.status(200).json({ status: 200, message: 'Logged out' });
     }

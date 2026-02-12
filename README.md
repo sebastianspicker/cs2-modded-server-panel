@@ -2,11 +2,13 @@
 
 A Node.js/Express web panel to control and monitor modded Counter-Strike 2 servers via RCON.
 
-> This repository is a fork of [shobhit-pathak/cs2-rcon-panel](https://github.com/shobhit-pathak/cs2-rcon-panel) with a focus on containerized deployment and Pterodactyl support.
+> This repository is a fork of [shobhit-pathak/cs2-rcon-panel](https://github.com/shobhit-pathak/cs2-rcon-panel)
+> with a focus on containerized deployment and Pterodactyl support.
 
 ## Overview
 
-Use this panel to manage CS2 servers, run RCON commands, configure match setup, and track live state. It is designed to run in Docker and as a Pterodactyl Egg, with a local dev flow for contributors.
+Use this panel to manage CS2 servers, run RCON commands, configure match setup, and track live state.
+It is designed to run in Docker and as a Pterodactyl Egg, with a local dev flow for contributors.
 
 ## Features
 
@@ -28,9 +30,11 @@ Use this panel to manage CS2 servers, run RCON commands, configure match setup, 
 
 ### Pterodactyl
 
-Use the bundled Egg configuration at `cs2-modded-server-panel_egg.json` and set the image to `sebastianspicker/cs2-modded-server-panel:latest`. Configure environment variables in the panel as needed.
+Use the bundled Egg configuration at `cs2-modded-server-panel_egg.json` and set the image to
+`sebastianspicker/cs2-modded-server-panel:latest`. Configure environment variables in the panel as needed.
 
-> Note: The Egg install script is pinned to a specific commit for reproducibility. Update the pin when releasing new versions.
+> Note: The Egg install script is pinned to a specific commit for reproducibility.
+> Update the pin when releasing new versions.
 
 ### Docker
 
@@ -64,21 +68,22 @@ npm run dev
 
 ### Environment Variables
 
-| Variable                    | Description                                     | Default                           |
-| --------------------------- | ----------------------------------------------- | --------------------------------- |
-| `DEFAULT_USERNAME`          | Default admin login username                    | `cspanel`                         |
-| `DEFAULT_PASSWORD`          | Default admin login password                    | `v67ic55x4ghvjfj`                 |
-| `ALLOW_DEFAULT_CREDENTIALS` | Allow built-in default credentials              | `false`                           |
-| `SESSION_SECRET`            | Session signing secret (required in production) | _unset_                           |
-| `SESSION_COOKIE_SECURE`     | Set to `true` behind HTTPS                      | `false`                           |
-| `SESSION_COOKIE_SAMESITE`   | Session cookie SameSite value                   | `lax`                             |
-| `REDIS_URL`                 | Redis connection URL (optional session store)   | _unset_                           |
-| `REDIS_HOST` / `REDIS_PORT` | Alternative to `REDIS_URL`                      | _unset_ / `6379`                  |
-| `PORT`                      | Port the panel runs on                          | `3000`                            |
-| `DB_PATH`                   | SQLite DB file path                             | `/home/container/data/cspanel.db` |
-| `RCON_COMMAND_TIMEOUT_MS`   | RCON command timeout (milliseconds)             | `2000`                            |
+| Variable                    | Description                          | Default                           |
+| --------------------------- | ------------------------------------ | --------------------------------- |
+| `DEFAULT_USERNAME`          | Default admin login username         | `cspanel`                         |
+| `DEFAULT_PASSWORD`          | Default admin login password         | `v67ic55x4ghvjfj`                 |
+| `ALLOW_DEFAULT_CREDENTIALS` | Allow built-in default credentials   | `false`                           |
+| `SESSION_SECRET`            | Session signing secret (production)  | _unset_                           |
+| `SESSION_COOKIE_SECURE`     | Set to `true` behind HTTPS           | `false`                           |
+| `SESSION_COOKIE_SAMESITE`   | Session cookie SameSite value        | `lax`                             |
+| `REDIS_URL`                 | Redis connection URL (session store) | _unset_                           |
+| `REDIS_HOST` / `REDIS_PORT` | Alternative to `REDIS_URL`            | _unset_ / `6379`                  |
+| `PORT`                      | Port the panel runs on               | `3000`                            |
+| `DB_PATH`                   | SQLite DB file path                  | `/home/container/data/cspanel.db`  |
+| `RCON_COMMAND_TIMEOUT_MS`   | RCON command timeout (milliseconds)  | `2000`                            |
 
-> If you use the built-in defaults (`cspanel` / `v67ic55x4ghvjfj`), you must set `ALLOW_DEFAULT_CREDENTIALS=true` or the server will refuse to start.
+> If you use the built-in defaults (`cspanel` / `v67ic55x4ghvjfj`), you must set
+> `ALLOW_DEFAULT_CREDENTIALS=true` or the server will refuse to start.
 
 ## Development
 
@@ -132,7 +137,8 @@ npm run ci
 - **`npm ci` fails**: Ensure Node.js 20–22 is active (`cat .nvmrc`).
 - **`npm run validate` fails**: Install `shellcheck`, `shfmt`, `jq`, and `ruby`.
 - **Docker validation skipped**: Docker daemon not available; run without `--require-docker`.
-- **Auth fails on fresh install**: Set `DEFAULT_USERNAME`, `DEFAULT_PASSWORD`, and `ALLOW_DEFAULT_CREDENTIALS` appropriately.
+- **Auth fails on fresh install**: Set `DEFAULT_USERNAME`, `DEFAULT_PASSWORD`, and
+  `ALLOW_DEFAULT_CREDENTIALS` appropriately.
 - **Session store warning**: Configure Redis with `REDIS_URL` for production stability.
 
 ## Project Structure
