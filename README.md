@@ -77,9 +77,9 @@ npm run dev
 | `SESSION_COOKIE_SECURE`     | Set to `true` behind HTTPS           | `false`                           |
 | `SESSION_COOKIE_SAMESITE`   | Session cookie SameSite value        | `lax`                             |
 | `REDIS_URL`                 | Redis connection URL (session store) | _unset_                           |
-| `REDIS_HOST` / `REDIS_PORT` | Alternative to `REDIS_URL`            | _unset_ / `6379`                  |
+| `REDIS_HOST` / `REDIS_PORT` | Alternative to `REDIS_URL`           | _unset_ / `6379`                  |
 | `PORT`                      | Port the panel runs on               | `3000`                            |
-| `DB_PATH`                   | SQLite DB file path                  | `/home/container/data/cspanel.db`  |
+| `DB_PATH`                   | SQLite DB file path                  | `/home/container/data/cspanel.db` |
 | `RCON_COMMAND_TIMEOUT_MS`   | RCON command timeout (milliseconds)  | `2000`                            |
 
 > If you use the built-in defaults (`cspanel` / `v67ic55x4ghvjfj`), you must set
@@ -161,16 +161,16 @@ npm run ci
 
 ## Validation Commands
 
-| Action   | Command |
-| -------- | ------- |
-| Install  | `npm ci` |
-| Build    | `docker build -t cs2-modded-server-panel .` (optional) |
-| Run      | `npm run dev` or `npm start` |
-| Test     | `npm test` |
-| Lint     | `npm run lint` |
-| Format   | `npm run format` then `npm run format:check` |
+| Action   | Command                                                                        |
+| -------- | ------------------------------------------------------------------------------ |
+| Install  | `npm ci`                                                                       |
+| Build    | `docker build -t cs2-modded-server-panel .` (optional)                         |
+| Run      | `npm run dev` or `npm start`                                                   |
+| Test     | `npm test`                                                                     |
+| Lint     | `npm run lint`                                                                 |
+| Format   | `npm run format` then `npm run format:check`                                   |
 | Validate | `npm run validate` (shell/config); add `-- --require-docker` for Docker checks |
-| Full CI  | `npm run ci` |
+| Full CI  | `npm run ci`                                                                   |
 
 ## Notes
 

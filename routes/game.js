@@ -122,9 +122,7 @@ router.post('/api/setup-game', is_authenticated, async (req, res) => {
     }
     const allowedMaps = getMapsForMode(game_type, game_mode);
     const mapName =
-      typeof selectedMap === 'string' && selectedMap.trim().length > 0
-        ? selectedMap.trim()
-        : '';
+      typeof selectedMap === 'string' && selectedMap.trim().length > 0 ? selectedMap.trim() : '';
     if (!mapName || (allowedMaps.length > 0 && !allowedMaps.includes(mapName))) {
       return res.status(400).json({
         error: allowedMaps.length
