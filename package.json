@@ -1,8 +1,16 @@
 {
   "name": "cs2panel",
   "version": "1.0.0",
-  "description": "RCON Web Panel to control CS2 Servers.",
+  "description": "Node.js/Express web panel to control and monitor modded Counter-Strike 2 servers via RCON.",
   "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebastianspicker/cs2-modded-server-panel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sebastianspicker/cs2-modded-server-panel/issues"
+  },
+  "homepage": "https://github.com/sebastianspicker/cs2-modded-server-panel#readme",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
@@ -23,11 +31,10 @@
     "connect-redis": "^7.1.0",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "express-session": "^1.17.3",
-    "mongodb": "^6.1.0",
     "redis": "^4.7.1",
-    "rcon-srcds": "^2.0.2",
-    "srcds-rcon": "^2.2.1"
+    "rcon-srcds": "^2.0.2"
   },
   "devDependencies": {
     "eslint": "^9.19.0",
@@ -36,5 +43,10 @@
   },
   "engines": {
     "node": ">=20 <23"
+  },
+  "overrides": {
+    "minimatch@^3.0.2": "3.1.4",
+    "minimatch@^5.1.2": "5.1.8",
+    "qs": "6.15.0"
   }
 }

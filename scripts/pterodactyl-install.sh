@@ -5,9 +5,9 @@ set -euo pipefail
 # kept as a standalone file so it can be linted (shellcheck) and reviewed easily.
 
 DEFAULT_USERNAME="${DEFAULT_USERNAME:-cspanel}"
-DEFAULT_PASSWORD="${DEFAULT_PASSWORD:-v67ic55x4ghvjfj}"
+DEFAULT_PASSWORD="${DEFAULT_PASSWORD:-change-me}"
 DEFAULT_PORT="${DEFAULT_PORT:-3000}"
-ALLOW_DEFAULT_CREDENTIALS="${ALLOW_DEFAULT_CREDENTIALS:-true}"
+ALLOW_DEFAULT_CREDENTIALS="${ALLOW_DEFAULT_CREDENTIALS:-false}"
 
 rm -rf /home/container/* /home/container/.[!.]* /home/container/..?*
 

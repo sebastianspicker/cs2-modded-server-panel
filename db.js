@@ -3,10 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
+const {
+  encryptRconSecret,
+  hasRconSecretKey,
+  isEncryptedRconSecret,
+} = require('./utils/rconSecret');
 
+const nodeEnv = process.env.NODE_ENV || 'development';
 const defaultDbPath = path.resolve('/home/container/data/cspanel.db');
 const fallbackDbPath = path.resolve(process.cwd(), 'data', 'cspanel.db');
-const preferredDbPath = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : defaultDbPath;
+const dbPathEnv = process.env.DB_PATH?.trim();
+const preferredDbPath = dbPathEnv ? path.resolve(dbPathEnv) : defaultDbPath;
 
 function openDb(dbFilePath) {
   fs.mkdirSync(path.dirname(dbFilePath), { recursive: true });
@@ -17,10 +24,24 @@ let better_sqlite_client;
 try {
   better_sqlite_client = openDb(preferredDbPath);
 } catch (err) {
+  const allowFallback = !dbPathEnv && nodeEnv !== 'production';
+  if (!allowFallback) {
+    console.error(`[db] Failed to open DB at ${preferredDbPath}: ${err.message}`);
+    process.exit(1);
+  }
   console.warn(
     `[db] Failed to open DB at ${preferredDbPath} (${err.message}). Falling back to ${fallbackDbPath}.`
   );
-  better_sqlite_client = openDb(fallbackDbPath);
+  try {
+    better_sqlite_client = openDb(fallbackDbPath);
+  } catch (fallbackErr) {
+    console.error(`[db] Fallback DB also failed: ${fallbackErr.message}`);
+    process.exit(1);
+  }
+}
+
+if (nodeEnv === 'production' && !hasRconSecretKey()) {
+  throw new Error('RCON_SECRET_KEY must be set in production to protect stored RCON credentials');
 }
 
 // === 1) Tabellen erstellen, falls sie noch nicht existieren ===
@@ -60,44 +81,48 @@ better_sqlite_client.exec(`
   }
 }
 
+// Encrypt any existing plaintext RCON passwords when a key is configured.
+if (hasRconSecretKey()) {
+  const rows = better_sqlite_client.prepare(`SELECT id, rconPassword FROM servers`).all();
+  const update = better_sqlite_client.prepare(`UPDATE servers SET rconPassword = ? WHERE id = ?`);
+  for (const row of rows) {
+    if (typeof row.rconPassword !== 'string' || isEncryptedRconSecret(row.rconPassword)) continue;
+    const encrypted = encryptRconSecret(row.rconPassword);
+    update.run(encrypted, row.id);
+  }
+}
+
 // === 3) Default-User anlegen, falls noch nicht vorhanden ===
-const default_username = 'cspanel';
-const default_password = 'v67ic55x4ghvjfj';
-const allow_default_credentials = process.env.ALLOW_DEFAULT_CREDENTIALS === 'true';
 const env_username = process.env.DEFAULT_USERNAME;
 const env_password = process.env.DEFAULT_PASSWORD;
 const has_env_credentials = Boolean(env_username && env_password);
+const isWeakDefaultPassword = ['change-me', 'changeme', 'password', 'admin', 'default'].includes(
+  String(env_password || '').toLowerCase()
+);
 
 const user_count = better_sqlite_client.prepare(`SELECT COUNT(1) AS count FROM users`).get().count;
+const allowDefaultCredentials = process.env.ALLOW_DEFAULT_CREDENTIALS === 'true';
 
 if (user_count > 0) {
   console.log('Users already exist; skipping default user creation.');
+} else if (!allowDefaultCredentials) {
+  console.warn(
+    '[db] No users in DB and ALLOW_DEFAULT_CREDENTIALS is not "true". Set ALLOW_DEFAULT_CREDENTIALS=true and DEFAULT_USERNAME/DEFAULT_PASSWORD to create the first admin, or add a user by other means.'
+  );
 } else {
-  let username = env_username;
-  let password = env_password;
-
   if (!has_env_credentials) {
-    if (!allow_default_credentials) {
-      console.error(
-        '[db] DEFAULT_USERNAME/DEFAULT_PASSWORD are required unless ALLOW_DEFAULT_CREDENTIALS=true.'
-      );
-      throw new Error(
-        'Default credentials are not allowed without ALLOW_DEFAULT_CREDENTIALS=true.'
-      );
-    }
-    username = default_username;
-    password = default_password;
-    console.warn('[db] Using built-in default credentials because ALLOW_DEFAULT_CREDENTIALS=true.');
-  } else if (
-    !allow_default_credentials &&
-    username === default_username &&
-    password === default_password
-  ) {
-    console.error('[db] Default credentials are blocked unless ALLOW_DEFAULT_CREDENTIALS=true.');
-    throw new Error('Default credentials are not allowed without ALLOW_DEFAULT_CREDENTIALS=true.');
+    console.error(
+      '[db] ALLOW_DEFAULT_CREDENTIALS=true requires DEFAULT_USERNAME and DEFAULT_PASSWORD. Refusing to create unknown/random credentials.'
+    );
+    process.exit(1);
+  }
+  if (nodeEnv === 'production' && isWeakDefaultPassword) {
+    console.error('[db] DEFAULT_PASSWORD uses a weak placeholder value in production.');
+    process.exit(1);
   }
 
-  const hashed_password = bcrypt.hashSync(password, 10);
+  const safeUsername = String(env_username).slice(0, 255);
+  const hashed_password = bcrypt.hashSync(env_password, 10);
   better_sqlite_client
     .prepare(
       `
@@ -105,9 +130,10 @@ if (user_count > 0) {
       VALUES (?, ?)
     `
     )
-    .run(username, hashed_password);
+    .run(safeUsername, hashed_password);
   console.log('Default user created successfully.');
 }
+
 
 module.exports = {
   better_sqlite_client,
