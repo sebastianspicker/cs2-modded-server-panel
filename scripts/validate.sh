@@ -59,6 +59,31 @@ log "validate: yaml"
 require_cmd ruby
 run ruby -ryaml -e "YAML.load_file('${ROOT}/docker-compose.yaml')" >/dev/null
 
+log "validate: repo hygiene"
+require_cmd git
+
+hygiene_violations=()
+while IFS= read -r tracked_file; do
+  if [[ "$tracked_file" =~ (^|/)\.DS_Store$ ]]; then
+    hygiene_violations+=("$tracked_file")
+    continue
+  fi
+  if [[ "$tracked_file" =~ \.tmp$ ]]; then
+    hygiene_violations+=("$tracked_file")
+    continue
+  fi
+  if [[ "$tracked_file" =~ \.swp$ || "$tracked_file" =~ \.swo$ ]]; then
+    hygiene_violations+=("$tracked_file")
+    continue
+  fi
+done < <(git -C "${ROOT}" ls-files)
+
+if [[ ${#hygiene_violations[@]} -gt 0 ]]; then
+  printf 'repo hygiene violations detected:\n' >&2
+  printf ' - %s\n' "${hygiene_violations[@]}" >&2
+  die "remove temporary/junk tracked files before release"
+fi
+
 if [[ $require_docker -eq 1 ]]; then
   log "validate: docker"
   docker_ok || die "docker daemon not available"

@@ -35,7 +35,6 @@ $(document).ready(function () {
             const hostname = escapeHtml(server.hostname);
             const serverIP = escapeHtml(server.serverIP);
             const serverPort = escapeHtml(server.serverPort);
-            const rconPassword = escapeHtml(server.rconPassword);
             const serverId = escapeHtml(server.id);
             const card = `
               <div class="card server-card mb-3">
@@ -45,24 +44,7 @@ $(document).ready(function () {
                   </h3>
                 </div>
                 <div class="card-body">
-                  <div class="mb-2">
-                    RCON Password:
-                    <input
-                      type="password"
-                      class="form-control d-inline-block rcon-password-${serverId}"
-                      value="${rconPassword}"
-                      aria-label="RCON password"
-                      disabled
-                      style="width:auto;"
-                    />
-                    <button
-                      class="btn btn-sm btn-secondary toggle-password"
-                      data-server-id="${serverId}"
-                      aria-label="Toggle RCON password visibility"
-                    >
-                      <i class="fa fa-eye" id="toggleEyeIcon-${serverId}" aria-hidden="true"></i>
-                    </button>
-                  </div>
+                  <p class="status mb-1 text-muted small">RCON password is stored securely and not displayed here.</p>
                   <p class="status mb-1">
                     RCON Connected:
                     <strong>${server.connected ? 'Yes' : 'No'}</strong>
@@ -103,18 +85,6 @@ $(document).ready(function () {
   // === DELEGATED EVENT HANDLERS FOR OVERVIEW ===
   //
   $('#serverList')
-    .on('click', '.toggle-password', function () {
-      const sid    = $(this).data('server-id');
-      const $input = $(`.rcon-password-${sid}`);
-      const $icon  = $(`#toggleEyeIcon-${sid}`);
-      if ($input.attr('type') === 'password') {
-        $input.attr('type', 'text');
-        $icon.removeClass('fa-eye').addClass('fa-eye-slash');
-      } else {
-        $input.attr('type', 'password');
-        $icon.removeClass('fa-eye-slash').addClass('fa-eye');
-      }
-    })
     .on('click', '.reconnect-server', function () {
       const sid = $(this).data('server-id');
       sendPostRequest('/api/reconnect-server', { server_id: sid })
@@ -148,7 +118,7 @@ $(document).ready(function () {
         const { gameModes: modes } = await resp.json();
         $gameMode.empty();
         if (modes.length) {
-          modes.forEach(m => $gameMode.append(`<option>${m}</option>`));
+          modes.forEach(m => $gameMode.append(`<option>${escapeHtml(m)}</option>`));
           loadMaps(type, modes[0]);
         } else {
           $gameMode.append('<option disabled>Keine Spielmodi verfügbar</option>');
@@ -169,7 +139,7 @@ $(document).ready(function () {
         const { maps } = await resp.json();
         $mapSelect.empty();
         if (maps.length) {
-          maps.forEach(m => $mapSelect.append(`<option>${m}</option>`));
+          maps.forEach(m => $mapSelect.append(`<option>${escapeHtml(m)}</option>`));
         } else {
           $mapSelect.append('<option disabled>Keine Karten verfügbar</option>');
         }
@@ -390,14 +360,17 @@ $('#autokick_off').click(() =>
         document.getElementById('last-game-type').textContent = data.last_game_type || '–';
         document.getElementById('last-game-mode').textContent = data.last_game_mode || '–';
 
+        const now = new Date();
+        $('#live-status-updated').text('Last updated: ' + now.toLocaleTimeString());
       } catch (err) {
         console.error('Live-Status fehlerhaft:', err);
       }
     }
 
-    // Bei Seitenaufruf und Klick auf “Refresh”
     fetchLiveStatus();
     $('#refresh_status').click(fetchLiveStatus);
+    const liveStatusInterval = setInterval(fetchLiveStatus, 30000);
+    $(window).on('beforeunload', () => clearInterval(liveStatusInterval));
   }
 
   //

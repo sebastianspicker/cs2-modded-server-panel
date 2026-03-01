@@ -9,6 +9,12 @@ Node.js/Express web panel for managing Counter-Strike 2 servers via RCON. Server
 - `app.js`: Express app bootstrap, session setup, static assets, and route mounts.
 - `db.js`: SQLite initialization, schema creation, migrations, and default admin user creation.
 
+## Shared Utils
+
+- `utils/parseServerId.js`: Parse/validate server_id; `requireServerId(req, res)` for body-based routes.
+- `utils/mapsConfig.js`: Loads `cfg/maps.json`; exports `getMapsForMode(gameType, gameMode)` and `mapsConfig`.
+- `utils/rconResponse.js`: `parseHostnameResponse(text, fallback)` for RCON hostname output.
+
 ## Core Modules
 
 - `modules/rcon.js`: RCON connection manager with connection pooling, reconnection logic, and heartbeat.
@@ -34,14 +40,17 @@ Node.js/Express web panel for managing Counter-Strike 2 servers via RCON. Server
 ## Tests
 
 - `test/app.test.js`: Basic unauthenticated login page check.
-- `test/entrypoint.test.js`: Ensures `node app.js` starts and logs a port.
+- `test/entrypoint.test.js`: Entrypoint boot and production guard behavior.
+- `test/rcon-secret.test.js`: RCON secret encryption/decryption unit tests.
 
 ## Documentation
 
-- `docs/ci.md`: CI overview and local reproduction.
-- `docs/RUNBOOK.md`: Commands and prerequisites.
+- `docs/RUNBOOK.md`: Commands, prerequisites, and CI overview.
+- `docs/RELEASING.md`: Release checklist, versioning, tag/release, rollback.
+- `docs/RELEASE_SCOPE.md`: Release-prep include/exclude scope and guardrails.
 - `docs/REPO_MAP.md`: This file; code layout and hotspots.
 - `docs/audit/`: Audit reports and findings (see `docs/audit/README.md`).
+- `docs/screenshots/`: Canonical README UI screenshots.
 
 ## Ops & Tooling
 

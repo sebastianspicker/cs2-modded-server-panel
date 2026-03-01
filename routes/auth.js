@@ -1,38 +1,72 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 
 const bcrypt = require('bcrypt');
 
 const { better_sqlite_client } = require('../db');
 
-router.post('/auth/login', (req, res) => {
-  const { username, password } = req.body;
+const DUMMY_PASSWORD_HASH = '$2b$10$G6s7QvNxy4/Fq7l6f5Yx8eSE0qVYCSvJzpuG1HsfrN7kYMva9nQxW';
+
+router.post('/auth/login', async (req, res) => {
+  const username =
+    typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+
+  if (!username || !password) {
+    return res.status(400).json({ status: 400, message: 'Username and password are required' });
+  }
+  if (username.length > 255) {
+    return res.status(400).json({ status: 400, message: 'Username too long' });
+  }
+
   const query = better_sqlite_client.prepare('SELECT * FROM users WHERE username = ?');
   const user = query.get(username);
+  const passwordHash = user?.password || DUMMY_PASSWORD_HASH;
 
-  if (user) {
-    bcrypt.compare(password, user.password, (err, result) => {
-      if (err) {
-        console.error('[auth] bcrypt compare failed', err);
+  let passwordMatches = false;
+  try {
+    passwordMatches = await bcrypt.compare(password, passwordHash);
+  } catch (err) {
+    console.error('[auth] bcrypt compare failed', err);
+    return res.status(500).json({ status: 500, message: 'Internal server error' });
+  }
+
+  if (!user || !passwordMatches) {
+    return res.status(401).json({ status: 401, message: 'Invalid credentials' });
+  }
+
+  return req.session.regenerate((regenErr) => {
+    if (regenErr) {
+      console.error('[auth] session regenerate failed', regenErr);
+      return res.status(500).json({ status: 500, message: 'Internal server error' });
+    }
+    req.session.user = { id: user.id, username: user.username };
+    req.session.csrfToken = crypto.randomBytes(32).toString('hex');
+    return req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error('[auth] session save failed', saveErr);
         return res.status(500).json({ status: 500, message: 'Internal server error' });
       }
-      if (result) {
-        req.session.user = user;
-        return res.status(200).json({ status: 200, message: 'Login successful' });
-      }
-      return res.status(401).json({ status: 401, message: 'Invalid credentials' });
+      return res.status(200).json({ status: 200, message: 'Login successful' });
     });
-  } else {
-    res.status(401).json({ status: 401, message: 'Invalid credentials' });
-  }
+  });
 });
 
 router.post('/auth/logout', (req, res) => {
+  const sessionCookieName = req.app.get('sessionCookieName') || 'cspanel.sid';
+  const sessionCookieConfig = req.app.get('sessionCookieConfig') || { path: '/' };
   req.session.destroy((err) => {
     if (err) {
       console.error(err);
       return res.status(500).json({ status: 500, message: 'Logout failed' });
     }
+    res.clearCookie(sessionCookieName, {
+      httpOnly: sessionCookieConfig.httpOnly,
+      sameSite: sessionCookieConfig.sameSite,
+      secure: sessionCookieConfig.secure,
+      path: sessionCookieConfig.path || '/',
+    });
     const wantsJson = (req.headers.accept || '').includes('application/json') || req.xhr === true;
     if (wantsJson) {
       return res.status(200).json({ status: 200, message: 'Logged out' });

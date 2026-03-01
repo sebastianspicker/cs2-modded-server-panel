@@ -4,6 +4,7 @@ const router = express.Router();
 const { better_sqlite_client } = require('../db');
 const rcon = require('../modules/rcon');
 const is_authenticated = require('../modules/middleware');
+const { parseServerId } = require('../utils/parseServerId');
 
 /**
  * GET /api/status/:server_id
@@ -12,11 +13,6 @@ const is_authenticated = require('../modules/middleware');
  *  - last_game_type, last_game_mode from the panel state (DB)
  *  - current human and bot counts parsed from RCON 'status' output
  */
-function parseServerId(val) {
-  if (val == null || val === '') return null;
-  const id = typeof val === 'number' ? val : parseInt(String(val).trim(), 10);
-  return Number.isInteger(id) && id > 0 ? String(id) : null;
-}
 
 router.get('/api/status/:server_id', is_authenticated, async (req, res) => {
   const serverId = parseServerId(req.params.server_id);
