@@ -46,7 +46,9 @@ if (!sessionSecret) {
 
 const sameSiteRaw = (process.env.SESSION_COOKIE_SAMESITE || 'lax').toLowerCase();
 let cookieSameSite = ['strict', 'lax', 'none'].includes(sameSiteRaw) ? sameSiteRaw : 'lax';
-const cookieSecure = process.env.SESSION_COOKIE_SECURE === 'true' || (nodeEnv === 'production' && process.env.SESSION_COOKIE_SECURE !== 'false');
+const cookieSecure =
+  process.env.SESSION_COOKIE_SECURE === 'true' ||
+  (nodeEnv === 'production' && process.env.SESSION_COOKIE_SECURE !== 'false');
 if (cookieSameSite === 'none' && !cookieSecure) {
   cookieSameSite = 'lax';
   console.warn(
@@ -138,6 +140,9 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   res.setHeader('Content-Security-Policy', cspHeader);
+  if (nodeEnv === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+  }
   next();
 });
 
@@ -180,7 +185,6 @@ app.use((req, res, next) => {
   }
   return next();
 });
-
 
 const gameRoutes = require('./routes/game');
 const serverRoutes = require('./routes/server');
@@ -239,8 +243,7 @@ app.get('/api/health', (req, res) => {
   }
   health.ok = health.db && (health.redis === null || health.redis === true);
   const statusCode = health.ok ? 200 : 503;
-  const verboseHealth =
-    process.env.HEALTHCHECK_VERBOSE === 'true' || Boolean(req.session?.user);
+  const verboseHealth = process.env.HEALTHCHECK_VERBOSE === 'true' || Boolean(req.session?.user);
   if (!verboseHealth) {
     return res.status(statusCode).json({ ok: health.ok });
   }

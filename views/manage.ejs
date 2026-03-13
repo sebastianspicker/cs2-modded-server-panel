@@ -282,8 +282,8 @@
   <!-- Übergabe an console.js (safeServerId nur Ziffern, XSS-sicher) -->
   <script nonce="<%= cspNonce %>">
     window.server_id       = '<%= safeServerId %>';
-    window.rootPlugins     = <%- JSON.stringify(rootPlugins) %>;
-    window.disabledPlugins = <%- JSON.stringify(disabledPlugins) %>;
+    window.rootPlugins     = JSON.parse('<%= JSON.stringify(rootPlugins).replace(/\\/g, "\\\\").replace(/\'/g, "\\'").replace(/</g, "\\u003c") %>');
+    window.disabledPlugins = JSON.parse('<%= JSON.stringify(disabledPlugins).replace(/\\/g, "\\\\").replace(/\'/g, "\\'").replace(/</g, "\\u003c") %>');
   </script>
 
   <!-- JS -->

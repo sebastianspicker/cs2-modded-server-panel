@@ -77,19 +77,23 @@ class RconManager {
     return resp ? resp.toString() : '';
   }
 
-
   /** Helper für Game‐Setup: lädt zuerst Map, dann CFG */
   async execCfg(server_id, cfgName) {
-    await this._exec(server_id, `exec ${cfgName}`, 'setup-game');
+    const safe = String(cfgName);
+    if (!/^[a-zA-Z0-9_.-]+$/.test(safe)) {
+      throw new Error('Invalid cfg name');
+    }
+    await this._exec(server_id, 'exec ' + safe, 'setup-game');
   }
 
   /** Helper für Plugin‐Override: unload oder load via css_plugins */
   async execPluginCmd(server_id, action, pluginName) {
-    // Sorge dafür, dass Anführungszeichen im Plugin-Namen escaped werden
-    const escapedName = String(pluginName).replace(/"/g, '\\"');
-    await this._exec(server_id, `css_plugins ${action} "${escapedName}"`, 'plugins');
+    const safeAction = ['load', 'unload', 'reload'].includes(action) ? action : null;
+    if (!safeAction) throw new Error('Invalid plugin action');
+    const safeName = String(pluginName).replace(/[";\\]/g, '');
+    if (!safeName) throw new Error('Invalid plugin name');
+    await this._exec(server_id, `css_plugins ${safeAction} "${safeName}"`, 'plugins');
   }
-
 
   /** sendet periodisch einen status‐Heartbeat */
   async send_heartbeat(server_id, server) {
@@ -103,9 +107,7 @@ class RconManager {
     try {
       await Promise.race([
         conn.execute('status'),
-        new Promise((_, rej) =>
-          setTimeout(() => rej(new Error('Heartbeat timed out')), 5000)
-        ),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Heartbeat timed out')), 5000)),
       ]);
       console.log('HEARTBEAT SUCCESS', server_id);
     } catch (err) {
