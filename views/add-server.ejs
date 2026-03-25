@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title>CS2 Panel — Add Server</title>
+  <link rel="stylesheet" href="/css/panel.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <%- include('partials/navbar') %>
+  <div class="auth-page" id="main" style="min-height: calc(100vh - 53px);">
+    <div class="auth-card">
+      <div class="panel">
+        <h1 class="auth-title" style="font-size:1.2rem;">Add Server</h1>
+        <p class="auth-subtitle">Register a new CS2 server</p>
+        <form>
+          <div class="mb-3">
+            <label for="serverIP" class="form-label">Server IP</label>
+            <input
+              type="text"
+              id="serverIP"
+              name="server_ip"
+              class="form-control"
+              inputmode="decimal"
+              autocomplete="off"
+              placeholder="192.168.1.1"
+              required
+              maxlength="253"
+            >
+          </div>
+          <div class="mb-3">
+            <label for="serverPort" class="form-label">Server Port</label>
+            <input
+              type="number"
+              id="serverPort"
+              name="server_port"
+              class="form-control"
+              inputmode="numeric"
+              min="1"
+              max="65535"
+              step="1"
+              autocomplete="off"
+              placeholder="27015"
+              required
+            >
+          </div>
+          <div class="mb-3">
+            <label for="rconPassword" class="form-label">RCON Password</label>
+            <input
+              type="password"
+              id="rconPassword"
+              name="rcon_password"
+              class="form-control"
+              autocomplete="off"
+              required
+              maxlength="512"
+            >
+          </div>
+          <div class="btn-container">
+            <button id="submitButton" class="btn btn-primary">Add Server</button>
+            <button type="reset" class="btn btn-secondary">Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script
+    src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
+    crossorigin="anonymous"
+  ></script>
+
+  <script src="/js/toast-inline.js"></script>
+  <script nonce="<%= cspNonce %>">
+    $(document).ready(function () {
+      var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      $('#submitButton').on('click', function (e) {
+        e.preventDefault();
+        var server_ip = $('#serverIP').val();
+        var server_port = $('#serverPort').val();
+        var rcon_password = $('#rconPassword').val();
+        if (!server_ip || !server_port || !rcon_password) {
+          showToast('All fields are required.', 'error');
+          return;
+        }
+        $.ajax({
+          url: '/api/add-server',
+          type: 'POST',
+          data: JSON.stringify({ server_ip: server_ip, server_port: server_port, rcon_password: rcon_password }),
+          contentType: 'application/json',
+          headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+          success: function () {
+            showToast('Server added successfully!', 'success');
+            $('#serverIP, #serverPort, #rconPassword').val('');
+          },
+          error: function (xhr) {
+            var msg = 'An error occurred while adding the server.';
+            try {
+              var body = JSON.parse(xhr.responseText);
+              if (body.error) msg = body.error;
+              else if (body.message) msg = body.message;
+            } catch (_e) { /* non-JSON */ }
+            showToast(msg, 'error');
+          },
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,226 @@
+{
+  "plugins": [
+    {
+      "name": "BotsNoKnife",
+      "defaultEnabled": true,
+      "description": "Keeps Bots from using the knife.",
+      "url": "https://discord.com/channels/1160907911501991946/1365937101886984262"
+    },
+    {
+      "name": "CS2-CustomVotes",
+      "defaultEnabled": true,
+      "description": "A plugin for Counter-Strike 2 to create custom votes for settings.",
+      "url": "https://github.com/imi-tat0r/CS2-CustomVotes"
+    },
+    {
+      "name": "CS2AnnouncementBroadcaster",
+      "defaultEnabled": true,
+      "description": "Conditional messages, OnCommand, OnPlayerConnect, OnRoundStart, and timer-based broadcasts.",
+      "url": "https://github.com/lengran/CS2AnnouncementBroadcaster"
+    },
+    {
+      "name": "CS2Rcon",
+      "defaultEnabled": true,
+      "description": "Rudimentary RCON plugin for CS2; erlaubt RCON‐Befehle während Clients verbunden sind.",
+      "url": "https://github.com/LordFetznschaedl/CS2Rcon"
+    },
+    {
+      "name": "CS2_ExecAfter",
+      "defaultEnabled": true,
+      "description": "Executes a command after a server event (z.B. OnMapStart) oder nach Verzögerung.",
+      "url": "https://github.com/kus/CS2_ExecAfter"
+    },
+    {
+      "name": "FixRandomSpawn",
+      "defaultEnabled": true,
+      "description": "Fixes the ConVar mp_randomspawn for any game mode.",
+      "url": "https://github.com/qstage/CS2-FixRandomSpawn"
+    },
+    {
+      "name": "GameModeManager",
+      "defaultEnabled": true,
+      "description": "Hilft Admins, Game Modes und Map‐Gruppen einfach zu verwalten.",
+      "url": "https://github.com/nickj609/GameModeManager"
+    },
+    {
+      "name": "InventorySimulator",
+      "defaultEnabled": true,
+      "description": "Use any weapon, knife, gloves, agent, music kit, pin or graffiti.",
+      "url": "https://github.com/ianlucas/cs2-inventory-simulator-plugin"
+    },
+    {
+      "name": "MapConfigurator",
+      "defaultEnabled": true,
+      "description": "Ermöglicht das schnelle Erstellen individueller Konfigurationsdateien pro Map.",
+      "url": "https://github.com/ManifestManah/MapConfigurator"
+    },
+    {
+      "name": "SimpleAdmin",
+      "defaultEnabled": true,
+      "description": "Fügt grundlegende Administrator‐Funktionen hinzu.",
+      "url": "https://github.com/connercsbn/SimpleAdmin"
+    },
+    {
+      "name": "WASDMenuAPI",
+      "defaultEnabled": true,
+      "description": "API zum Erstellen von In-Game Menüs mithilfe der WASD-Tasten.",
+      "url": "https://github.com/Interesting-exe/WASDMenuAPI"
+    },
+    {
+      "name": "Advertisement",
+      "defaultEnabled": false,
+      "description": "Ermöglicht das Anzeigen von Ads im Chat, in der Mitte oder auf dem Panel.",
+      "url": "https://github.com/partiusfabaa/cs2-advertisement"
+    },
+    {
+      "name": "CS2-Remove-Map-Weapons",
+      "defaultEnabled": false,
+      "description": "Entfernt Map-Waffen, da mp_weapons_allow_map_placed nicht funktioniert.",
+      "url": "https://github.com/kus/CS2-Remove-Map-Weapons"
+    },
+    {
+      "name": "Deathmatch",
+      "defaultEnabled": false,
+      "description": "Custom Deathmatch-Modus mit Spawn-Konfiguration, Gun-Selection, Spawn-Protection usw.",
+      "url": "https://github.com/NockyCZ/CS2-Deathmatch"
+    },
+    {
+      "name": "DeathrunManager",
+      "defaultEnabled": false,
+      "description": "Verwaltet Deathrun-Levels und Abläufe.",
+      "url": "https://github.com/leoskiline/cs2-deathrun-manager"
+    },
+    {
+      "name": "ExecutesPlugin",
+      "defaultEnabled": false,
+      "description": "Implementiert das 'executes' Feature wie in CS:GO.",
+      "url": "https://github.com/zwolof/cs2-executes"
+    },
+    {
+      "name": "FunMatchPlugin",
+      "defaultEnabled": false,
+      "description": "Zufälliger Fun-Mode jede Runde.",
+      "url": "https://github.com/TitaniumLithium/CS2FunMatchPlugin"
+    },
+    {
+      "name": "GG2",
+      "defaultEnabled": false,
+      "description": "GunGame-Modus für CS2.",
+      "url": "https://github.com/ssypchenko/cs2-gungame"
+    },
+    {
+      "name": "GameModifiers",
+      "defaultEnabled": false,
+      "description": "Jede Runde eine Überraschung – verschiedene Game Modifier dynamisch anwenden.",
+      "url": "https://github.com/Lewisscrivens/CS2-GameModifiers-Plugin"
+    },
+    {
+      "name": "InstadefusePlugin",
+      "defaultEnabled": false,
+      "description": "Ermöglicht sofortiges Entschärfen der Bombe durch CT.",
+      "url": "https://github.com/B3none/cs2-instadefuse"
+    },
+    {
+      "name": "K4-Arenas",
+      "defaultEnabled": false,
+      "description": "Ladder-Gameplay-Arenen mit Support für 2v2, 3v3 usw.",
+      "url": "https://github.com/KitsuneLab-Development/K4-Arenas"
+    },
+    {
+      "name": "K4-Arenas-Bots",
+      "defaultEnabled": false,
+      "description": "Bot-Support für K4 Arenas.",
+      "url": "https://github.com/KitsuneLab-Development/K4-Arenas"
+    },
+    {
+      "name": "K4-DamageInfo",
+      "defaultEnabled": false,
+      "description": "Zeigt HP-/Armor-Schaden und getroffene Hitgroups an.",
+      "url": "https://github.com/KitsuneLab-Development/K4-DamageInfo"
+    },
+    {
+      "name": "MatchZy",
+      "defaultEnabled": false,
+      "description": "Verwaltet Practice/PUG/Scrim-Matches mit einfacher Konfiguration.",
+      "url": "https://github.com/shobhit-pathak/MatchZy"
+    },
+    {
+      "name": "MutualScoringPlayers",
+      "defaultEnabled": false,
+      "description": "Erfasst Kill-Score zwischen Spielern.",
+      "url": "https://github.com/qstage/CS2-MutualScoringPlayers"
+    },
+    {
+      "name": "OpenPrefirePrac",
+      "defaultEnabled": false,
+      "description": "Multiple Prefire-Practics auf Competitive-Maps (multiplayerfähig).",
+      "url": "https://github.com/lengran/OpenPrefirePrac"
+    },
+    {
+      "name": "QuakeSounds",
+      "defaultEnabled": false,
+      "description": "Spielt Quake-Sounds bei Multi-Kills ab.",
+      "url": "https://github.com/Kandru/cs2-quake-sounds"
+    },
+    {
+      "name": "RetakesAllocator",
+      "defaultEnabled": false,
+      "description": "Erweiterte Waffenverteilung für CS2 Retakes.",
+      "url": "https://github.com/yonilerner/cs2-retakes-allocator"
+    },
+    {
+      "name": "RetakesPlugin",
+      "defaultEnabled": false,
+      "description": "CS2-Implementierung von Retakes (B3none).",
+      "url": "https://github.com/B3none/cs2-retakes"
+    },
+    {
+      "name": "RollTheDice",
+      "defaultEnabled": false,
+      "description": "Würfelt positive oder negative Effekte für die aktuelle Runde.",
+      "url": "https://github.com/Kandru/cs2-roll-the-dice"
+    },
+    {
+      "name": "STFixes",
+      "defaultEnabled": false,
+      "description": "Zusätzliche Fixes und Features für SharpTimer.",
+      "url": "https://github.com/rcnoob/STFixes"
+    },
+    {
+      "name": "SharpTimer",
+      "defaultEnabled": false,
+      "description": "Timer-Plugin für Surf, KZ, Bhop, Deathrun etc.",
+      "url": "https://github.com/Letaryat/poor-sharptimer"
+    },
+    {
+      "name": "WarcraftPlugin",
+      "defaultEnabled": false,
+      "description": "RPG-basiertes Warcraft-Mod für CS2.",
+      "url": "https://github.com/Wngui/CS2WarcraftMod"
+    },
+    {
+      "name": "WeaponSpeed",
+      "defaultEnabled": false,
+      "description": "Gibt Spielern einen Geschwindigkeitsboost beim Feuern bestimmter Waffen.",
+      "url": "https://github.com/akanora/CS2-WeaponSpeed"
+    },
+    {
+      "name": "WhiteList",
+      "defaultEnabled": false,
+      "description": "Erlaubt Zugriff nur für gelistete SteamIDs.",
+      "url": "https://github.com/PhantomYopta/CS2_WhiteList"
+    },
+    {
+      "name": "cs2-OneInTheChamber",
+      "defaultEnabled": false,
+      "description": "One in the Chamber Game Mode.",
+      "url": "https://github.com/ShookEagle/cs2-OneInTheChamber"
+    },
+    {
+      "name": "cs2-advanced-weapon-system",
+      "defaultEnabled": false,
+      "description": "Erweiterbares Waffensystem mit Attribut-Anpassungen.",
+      "url": "https://github.com/schwarper/cs2-advanced-weapon-system"
+    }
+  ]
+}

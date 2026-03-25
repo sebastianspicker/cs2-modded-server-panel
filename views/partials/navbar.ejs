@@ -1,0 +1,16 @@
+<nav class="panel-nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/servers">CS2 Panel</a>
+    <button class="nav-toggle" id="nav-toggle-btn" aria-label="Toggle navigation">&#9776;</button>
+    <ul class="nav-links">
+      <li><a href="/servers">Servers</a></li>
+      <li><a href="/add-server">Add Server</a></li>
+    </ul>
+    <div class="nav-actions">
+      <form action="/auth/logout" method="post" style="margin:0;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-ghost btn-sm">Logout</button>
+      </form>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,72 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2025-07-21T16:07:05+02:00",
+    "name": "CS2 Modded Server Panel",
+    "author": "nest@dellbronx.koeln",
+    "description": "A Node.js\/Express control panel for modded CS2 servers using RCON",
+    "features": null,
+    "docker_images": {
+        "sebastianspicker\/cs2-modded-server-panel:latest": "sebastianspicker\/cs2-modded-server-panel:latest"
+    },
+    "file_denylist": [],
+    "startup": "PORT=${DEFAULT_PORT} node dist/app.js",
+    "config": {
+        "files": "{}",
+        "startup": "{\n  \"done\": \"Server is running on ${DEFAULT_PORT}.\"\n}",
+        "logs": "{\n  \"files\": [ \"server.log\" ],\n  \"log_format\": \"plain\"\n}",
+        "stop": "kill -SIGINT 1"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!\/bin\/bash\r\nset -e\r\n\r\n# Clean old code including dotfiles\r\nrm -rf \/home\/container\/* \/home\/container\/.[!.]* \/home\/container\/..?*\r\n\r\n# Clone fresh code from GitHub\r\ngit clone https:\/\/github.com\/sebastianspicker\/cs2-modded-server-panel.git \/home\/container\r\ncd \/home\/container\r\ngit checkout cddb89c986349426a13b75ea3b86a7fae0914d8e\r\n\r\n# Generate secrets if not already set\r\nSESSION_SECRET=\"${SESSION_SECRET:-$(openssl rand -hex 32)}\"\r\nRCON_SECRET_KEY=\"${RCON_SECRET_KEY:-$(openssl rand -hex 32)}\"\r\n\r\n# Write environment variables (single-quoted to prevent shell injection)\r\ncat > .env <<EOF\r\nDEFAULT_USERNAME='${DEFAULT_USERNAME\/\/\\'\/\\'\\\\\\'\\'}'  \r\nDEFAULT_PASSWORD='${DEFAULT_PASSWORD\/\/\\'\/\\'\\\\\\'\\'}'  \r\nALLOW_DEFAULT_CREDENTIALS='${ALLOW_DEFAULT_CREDENTIALS\/\/\\'\/\\'\\\\\\'\\'}'  \r\nPORT='${DEFAULT_PORT\/\/\\'\/\\'\\\\\\'\\'}'  \r\nSESSION_SECRET='${SESSION_SECRET\/\/\\'\/\\'\\\\\\'\\'}'  \r\nRCON_SECRET_KEY='${RCON_SECRET_KEY\/\/\\'\/\\'\\\\\\'\\'}'  \r\nEOF\r\n\r\n# Install production dependencies with native bcrypt\r\nnpm ci --omit=dev --build-from-source=bcrypt\r\n\r\n# (Optional) Show commit\r\ngit rev-parse --short HEAD || true\r\n\r\n# Set permissions for Pterodactyl\r\nchown -R 1000:1000 \/home\/container",
+            "container": "node:20-bullseye-slim",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Default login username for the panel",
+            "description": "",
+            "env_variable": "DEFAULT_USERNAME",
+            "default_value": "cspanel",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Default login password for the panel",
+            "description": "",
+            "env_variable": "DEFAULT_PASSWORD",
+            "default_value": "change-me",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Allow default credentials",
+            "description": "Set to true only for first-run bootstrap after setting a strong password.",
+            "env_variable": "ALLOW_DEFAULT_CREDENTIALS",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Default Port for the Panel",
+            "description": "",
+            "env_variable": "DEFAULT_PORT",
+            "default_value": "3000",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "required|numeric|min:1|max:65535",
+            "field_type": "text"
+        }
+    ]
+}

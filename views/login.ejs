@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title>CS2 Panel — Login</title>
+  <link rel="stylesheet" href="/css/panel.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="auth-page" id="main">
+    <div class="auth-card">
+      <div class="panel">
+        <h1 class="auth-title">CS2 Panel</h1>
+        <p class="auth-subtitle">Server Control Console</p>
+        <form>
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              class="form-control"
+              autocomplete="username"
+              spellcheck="false"
+              required
+              maxlength="255"
+            >
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              class="form-control"
+              autocomplete="current-password"
+              required
+              minlength="12"
+              maxlength="1024"
+            >
+          </div>
+          <div class="btn-container">
+            <button id="login_btn" class="btn btn-primary">Authenticate</button>
+            <button type="reset" class="btn btn-secondary">Clear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script
+    src="https://code.jquery.com/jquery-3.7.1.min.js"
+    integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
+    crossorigin="anonymous"
+  ></script>
+
+  <script src="/js/toast-inline.js"></script>
+  <script nonce="<%= cspNonce %>">
+    $(document).ready(function () {
+      var csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      $('#login_btn').on('click', function (e) {
+        e.preventDefault();
+        var username = $('#username').val();
+        var password = $('#password').val();
+        if (!username || !password) {
+          showToast('All fields are required.', 'error');
+          return;
+        }
+        $.ajax({
+          url: '/auth/login',
+          type: 'POST',
+          data: JSON.stringify({ username: username, password: password }),
+          contentType: 'application/json',
+          headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+          success: function (data) {
+            if (data.status === 200) {
+              window.location.href = '/servers';
+            } else if (data.status === 401) {
+              showToast('Invalid Credentials', 'error');
+            }
+          },
+          error: function (xhr) {
+            var msg = 'Login Failed';
+            try {
+              var body = JSON.parse(xhr.responseText);
+              if (body.message) msg = body.message;
+            } catch (_e) { /* non-JSON */ }
+            showToast(msg, 'error');
+          },
+        });
+      });
+    });
+  </script>
+</body>
+</html>
